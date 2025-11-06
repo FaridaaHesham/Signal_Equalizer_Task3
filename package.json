@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "dev": "concurrently \"uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000\" \"cd frontend && npm run dev\""
-  },
+  "backend": "uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000",
+  "frontend": "cd frontend && npm run dev",
+  "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
