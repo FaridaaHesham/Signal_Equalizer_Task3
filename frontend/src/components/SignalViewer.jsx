@@ -49,8 +49,6 @@ const SignalViewer = ({ title, signal, timeAxis, color = '#3498DB', sampleRate =
     }
   };
 
-  // REMOVED calculateFallbackFFT entirely
-
   useEffect(() => {
     if (!signal.length) {
       const svg = select(svgRef.current);
@@ -61,9 +59,9 @@ const SignalViewer = ({ title, signal, timeAxis, color = '#3498DB', sampleRate =
     const svg = select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const margin = { top: 30, right: 20, bottom: 40, left: 50 };
-    const width = 500 - margin.left - margin.right;
-    const height = 250 - margin.top - margin.bottom;
+    const margin = { top: 25, right: 15, bottom: 35, left: 40 };
+    const width = 400 - margin.left - margin.right; // Increased width
+    const height = 200 - margin.top - margin.bottom; // Increased height
 
     const g = svg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -75,7 +73,7 @@ const SignalViewer = ({ title, signal, timeAxis, color = '#3498DB', sampleRate =
           .attr("y", height / 2)
           .attr("text-anchor", "middle")
           .style("fill", "#BDC3C7")
-          .style("font-size", "14px")
+          .style("font-size", "12px")
           .text("Calculating FFT...");
         return;
       }
@@ -96,7 +94,7 @@ const SignalViewer = ({ title, signal, timeAxis, color = '#3498DB', sampleRate =
           .attr("y", height / 2)
           .attr("text-anchor", "middle")
           .style("fill", "#BDC3C7")
-          .style("font-size", "14px")
+          .style("font-size", "12px")
           .text("No FFT data available");
         return;
       }
@@ -125,32 +123,34 @@ const SignalViewer = ({ title, signal, timeAxis, color = '#3498DB', sampleRate =
         .attr("class", "signal-line")
         .attr("fill", "none")
         .attr("stroke", color)
-        .attr("stroke-width", 2)
+        .attr("stroke-width", 1.5)
         .attr("d", lineGenerator);
 
-      // Add axes and grid (same as before)
+      // Add axes and grid
       g.append("g")
         .attr("transform", `translate(0,${height})`)
-        .call(axisBottom(xScale).ticks(8, ".0s"))
+        .call(axisBottom(xScale).ticks(5, ".0s"))
         .append("text")
         .attr("x", width / 2)
-        .attr("y", 30)
+        .attr("y", 28)
         .attr("fill", "#ecf0f1")
         .style("text-anchor", "middle")
+        .style("font-size", "10px")
         .text("Frequency (Hz)");
 
       g.append("g")
-        .call(axisLeft(yScale))
+        .call(axisLeft(yScale).ticks(4))
         .append("text")
         .attr("transform", "rotate(-90)")
-        .attr("y", -35)
+        .attr("y", -28)
         .attr("x", -height / 2)
         .attr("fill", "#ecf0f1")
         .style("text-anchor", "middle")
+        .style("font-size", "10px")
         .text("Amplitude");
 
     } else {
-      // Time domain display (unchanged)
+      // Time domain display
       const xScale = scaleLinear()
         .domain([0, timeAxis[timeAxis.length - 1] || 1])
         .range([0, width]);
@@ -169,32 +169,34 @@ const SignalViewer = ({ title, signal, timeAxis, color = '#3498DB', sampleRate =
         .attr("class", "signal-line")
         .attr("fill", "none")
         .attr("stroke", color)
-        .attr("stroke-width", 1.5)
+        .attr("stroke-width", 1.2)
         .attr("d", lineGenerator);
 
       // Add axes and grid for time domain
       g.append("g")
         .attr("transform", `translate(0,${height})`)
-        .call(axisBottom(xScale))
+        .call(axisBottom(xScale).ticks(5))
         .append("text")
         .attr("x", width / 2)
-        .attr("y", 30)
+        .attr("y", 28)
         .attr("fill", "#ecf0f1")
         .style("text-anchor", "middle")
+        .style("font-size", "10px")
         .text("Time (s)");
 
       g.append("g")
-        .call(axisLeft(yScale))
+        .call(axisLeft(yScale).ticks(4))
         .append("text")
         .attr("transform", "rotate(-90)")
-        .attr("y", -35)
+        .attr("y", -28)
         .attr("x", -height / 2)
         .attr("fill", "#ecf0f1")
         .style("text-anchor", "middle")
+        .style("font-size", "10px")
         .text("Amplitude");
     }
 
-    // Add grid and title (common to both)
+    // Add grid
     g.append("g")
       .attr("class", "grid")
       .attr("transform", type === 'frequency' ? `translate(0,${height})` : `translate(0,${height})`)
@@ -212,9 +214,9 @@ const SignalViewer = ({ title, signal, timeAxis, color = '#3498DB', sampleRate =
 
     g.append("text")
       .attr("x", width / 2)
-      .attr("y", -10)
+      .attr("y", -8)
       .attr("text-anchor", "middle")
-      .style("font-size", "14px")
+      .style("font-size", "12px")
       .style("font-weight", "bold")
       .style("fill", "#ecf0f1")
       .text(title);
@@ -225,8 +227,8 @@ const SignalViewer = ({ title, signal, timeAxis, color = '#3498DB', sampleRate =
     <div className="signal-viewer">
       <svg
         ref={svgRef}
-        width={500}
-        height={250}
+        width={440} // Increased from 340
+        height={240} // Increased from 160
       />
     </div>
   );

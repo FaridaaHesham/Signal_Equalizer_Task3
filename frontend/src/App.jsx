@@ -40,6 +40,7 @@ function App() {
   const [customFrequencies, setCustomFrequencies] = useState([32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]);
   const [signalDuration, setSignalDuration] = useState(3.0);
   const [isLoadingFrequencyResponse, setIsLoadingFrequencyResponse] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState('');
   
   const debouncedFrequencyBands = useDebounce(frequencyBands, 300);
 
@@ -72,6 +73,7 @@ function App() {
         setProcessedSignal(data.signal);
         setTimeAxis(data.time_axis);
         setSampleRate(data.sample_rate);
+        setUploadedFileName('');
         
         const defaultBands = [
           { id: 1, low_freq: 20, high_freq: 60, scale: 1.0, label: '32Hz', center_freq: 32 },
@@ -113,11 +115,46 @@ function App() {
         setProcessedSignal(data.signal);
         setTimeAxis(data.time_axis);
         setSampleRate(data.sample_rate);
+        setUploadedFileName('');
         updateSpectrograms(data.signal, data.signal);
         updateFrequencyResponse();
       }
     } catch (error) {
       console.error('Error generating custom signal:', error);
+    }
+  };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.wav')) {
+      alert('Please upload a WAV file');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${API_BASE}/upload-audio`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setOriginalSignal(data.signal);
+        setProcessedSignal(data.signal);
+        setTimeAxis(data.time_axis);
+        setSampleRate(data.sample_rate);
+        setUploadedFileName(file.name);
+        updateSpectrograms(data.signal, data.signal);
+        updateFrequencyResponse();
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Error uploading file. Please try again.');
     }
   };
 
@@ -305,17 +342,14 @@ function App() {
 
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>Professional Signal Equalizer - Generic Mode</h1>
-        <p>Arbitrary Frequency Subdivisions with Real-time Control</p>
-      </header>
+      {/* Header removed completely */}
 
       <div className="main-container">
-        {/* Visualization Section - Left side with scrolling */}
+        {/* Visualization Section - Left side */}
         <div className="visualization-section">
           {/* Signal Graphs Container */}
           <div className="signal-graphs-container">
-            {/* Time Domain Graphs - Horizontal */}
+            {/* Time Domain Graphs */}
             <div className="signal-graphs-row">
               <SignalViewer
                 title="Input Signal (Time Domain)"
@@ -335,7 +369,7 @@ function App() {
               />
             </div>
 
-            {/* Frequency Domain Graphs - Horizontal, aligned with time domain */}
+            {/* Frequency Domain Graphs */}
             <div className="signal-graphs-row">
               <SignalViewer
                 title="Input Signal (Frequency Domain)"
@@ -449,7 +483,7 @@ function App() {
           )}
         </div>
 
-        {/* Control Section - Right side, STATIC (no scrolling) */}
+        {/* Control Section - Right side */}
         <div className="control-section">
           <EqualizerPanel
             frequencyBands={frequencyBands}
@@ -461,9 +495,10 @@ function App() {
             isProcessing={isProcessing}
             frequencyResponse={frequencyResponse}
             onCustomizeSignal={() => setShowSignalCustomizer(true)}
+            onFileUpload={handleFileUpload}
           />
           
-          {/* Frequency Response in Controls Container - Compact */}
+          {/* Frequency Response */}
           {isLoadingFrequencyResponse ? (
             <div className="controls-frequency-response">
               <div style={{textAlign: 'center', color: '#BDC3C7', padding: '20px'}}>
@@ -482,7 +517,7 @@ function App() {
             </div>
           )}
 
-          {/* Audio Playback in Controls Container with Animation */}
+          {/* Audio Playback */}
           <div className="controls-audio-playback">
             <AudioControls
               inputSignal={originalSignal}
@@ -498,34 +533,61 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-content">
             <h3>Customize Synthetic Signal</h3>
-            <div className="frequency-inputs">
-              <label>Frequencies (Hz, comma separated):</label>
-              <input
-                type="text"
-                value={customFrequencies.join(', ')}
-                onChange={(e) => setCustomFrequencies(e.target.value.split(',').map(f => parseFloat(f.trim())).filter(f => !isNaN(f)))}
-                placeholder="32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000"
-              />
+
+            <div className="frequency-sliders" style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#BDC3C7', fontWeight: '500' }}>
+                Frequency Components (Hz):
+              </label>
+              {customFrequencies.map((freq, index) => (
+                <div key={index} style={{ marginBottom: '10px' }}>
+                  <label style={{ fontSize: '0.8em', color: '#BDC3C7' }}>
+                    Frequency {index + 1}: {freq}Hz
+                  </label>
+                  <input
+                    type="range"
+                    min="20"
+                    max="20000"
+                    step="1"
+                    value={freq}
+                    onChange={(e) => {
+                      const newFreq = parseInt(e.target.value);
+                      const newFrequencies = [...customFrequencies];
+                      newFrequencies[index] = newFreq;
+                      setCustomFrequencies(newFrequencies);
+                    }}
+                    style={{
+                      width: '100%',
+                      marginTop: '5px'
+                    }}
+                  />
+                </div>
+              ))}
             </div>
+
             <div className="duration-input">
-              <label>Duration (seconds):</label>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#BDC3C7', fontWeight: '500' }}>
+                Duration (seconds):
+              </label>
               <input
-                type="number"
-                value={signalDuration}
-                onChange={(e) => setSignalDuration(parseFloat(e.target.value))}
+                type="range"
                 min="0.1"
                 max="10"
                 step="0.1"
+                value={signalDuration}
+                onChange={(e) => setSignalDuration(parseFloat(e.target.value))}
+                style={{ width: '100%', marginBottom: '5px' }}
               />
+              <span style={{ color: '#3498DB', fontSize: '0.9em' }}>{signalDuration}s</span>
             </div>
+
             <div className="modal-buttons">
               <button onClick={() => {
                 generateCustomSignal(customFrequencies, signalDuration);
                 setShowSignalCustomizer(false);
-              }} className="btn btn-generate">
+              }} className="btn btn-generate" style={{padding: '4px 8px', fontSize: '0.7em'}}>
                 Generate Signal
               </button>
-              <button onClick={() => setShowSignalCustomizer(false)} className="btn btn-reset">
+              <button onClick={() => setShowSignalCustomizer(false)} className="btn btn-reset" style={{padding: '4px 8px', fontSize: '0.7em'}}>
                 Cancel
               </button>
             </div>

@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import numpy as np
 import json
 import os
+import scipy.io.wavfile as wavfile
+import io
 
 from app.services.dsp.signal_generator import SignalGenerator
 from app.services.dsp.fft_processor import FFTProcessor
@@ -124,6 +126,55 @@ async def generate_synthetic_signal(request: SyntheticSignalRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/upload-audio")
+async def upload_audio(file: UploadFile = File(...)):
+    try:
+        # Check if file is WAV
+        if not file.filename.lower().endswith('.wav'):
+            return {'success': False, 'error': 'Only WAV files are supported'}
+        
+        # Read file content
+        contents = await file.read()
+        
+        # Read WAV file
+        sample_rate, audio_data = wavfile.read(io.BytesIO(contents))
+        
+        # Handle stereo audio by converting to mono
+        if len(audio_data.shape) > 1:
+            audio_data = np.mean(audio_data, axis=1)
+        
+        # Normalize audio to [-1, 1]
+        audio_data = audio_data.astype(np.float32)
+        if audio_data.dtype == np.int16:
+            audio_data = audio_data / 32768.0
+        elif audio_data.dtype == np.int32:
+            audio_data = audio_data / 2147483648.0
+        elif audio_data.dtype == np.float32:
+            # Already float, ensure it's in reasonable range
+            audio_data = np.clip(audio_data, -1.0, 1.0)
+        
+        # Limit duration to prevent huge files
+        max_duration = 10  # seconds
+        max_samples = sample_rate * max_duration
+        if len(audio_data) > max_samples:
+            audio_data = audio_data[:max_samples]
+        
+        # Create time axis
+        time_axis = np.linspace(0, len(audio_data) / sample_rate, len(audio_data))
+        
+        return {
+            'success': True,
+            'signal': audio_data.tolist(),
+            'time_axis': time_axis.tolist(),
+            'sample_rate': sample_rate,
+            'duration': len(audio_data) / sample_rate,
+            'filename': file.filename
+        }
+        
+    except Exception as e:
+        print(f"Error processing audio file: {e}")
+        return {'success': False, 'error': f'Error processing audio file: {str(e)}'}
 
 @router.post("/save-settings")
 async def save_settings(request: SaveSettingsRequest):
