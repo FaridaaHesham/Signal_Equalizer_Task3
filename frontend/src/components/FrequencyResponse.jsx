@@ -6,7 +6,8 @@ import {
   axisBottom, 
   axisLeft, 
   line, 
-  curveMonotoneX 
+  curveMonotoneX,
+  max 
 } from 'd3';
 import './FrequencyResponse.css';
 
@@ -14,25 +15,67 @@ const FrequencyResponse = ({ frequencyResponse }) => {
   const svgRef = useRef();
 
   useEffect(() => {
-    if (!frequencyResponse) return;
-
+    // Add debugging
+    console.log('FrequencyResponse component received:', frequencyResponse);
+    
     const svg = select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const margin = { top: 15, right: 10, bottom: 25, left: 35 }; // Reduced margins
-    const width = 350 - margin.left - margin.right; // Smaller width
-    const height = 120 - margin.top - margin.bottom; // Smaller height
+    if (!frequencyResponse) {
+      console.log('No frequency response data available');
+      // Add "No Data" message
+      svg.append("text")
+        .attr("x", 175) // Half of 350 width
+        .attr("y", 60)  // Half of 120 height
+        .attr("text-anchor", "middle")
+        .style("fill", "#BDC3C7")
+        .style("font-size", "12px")
+        .text("No Frequency Response Data");
+      return;
+    }
+
+    if (!frequencyResponse.frequencies || !frequencyResponse.magnitude) {
+      console.error('Invalid frequency response structure:', frequencyResponse);
+      svg.append("text")
+        .attr("x", 175)
+        .attr("y", 60)
+        .attr("text-anchor", "middle")
+        .style("fill", "#E74C3C")
+        .style("font-size", "12px")
+        .text("Invalid Data Structure");
+      return;
+    }
+
+    if (frequencyResponse.frequencies.length === 0 || frequencyResponse.magnitude.length === 0) {
+      console.log('Empty frequency response data');
+      svg.append("text")
+        .attr("x", 175)
+        .attr("y", 60)
+        .attr("text-anchor", "middle")
+        .style("fill", "#BDC3C7")
+        .style("font-size", "12px")
+        .text("No Data Points");
+      return;
+    }
+
+    console.log(`Plotting ${frequencyResponse.frequencies.length} frequency response points`);
+
+    const margin = { top: 15, right: 10, bottom: 25, left: 35 };
+    const width = 350 - margin.left - margin.right;
+    const height = 120 - margin.top - margin.bottom;
 
     const g = svg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Create logarithmic scale for frequency
+    // Create logarithmic scale for frequency (20Hz to 20kHz)
     const xScale = scaleLog()
       .domain([20, 20000])
-      .range([0, width]);
+      .range([0, width])
+      .clamp(true);
 
+    // Create linear scale for magnitude (0 to 2, but show from 0 to 2.2 for some headroom)
     const yScale = scaleLinear()
-      .domain([0, 2])
+      .domain([0, 2.2])
       .range([height, 0]);
 
     // Create line generator
@@ -40,6 +83,32 @@ const FrequencyResponse = ({ frequencyResponse }) => {
       .x(d => xScale(d.frequency))
       .y(d => yScale(d.magnitude))
       .curve(curveMonotoneX);
+
+    // Prepare data for plotting
+    const responseData = [];
+    for (let i = 0; i < frequencyResponse.frequencies.length; i++) {
+      const freq = frequencyResponse.frequencies[i];
+      const mag = frequencyResponse.magnitude[i];
+      
+      // Only include valid data points within our frequency range
+      if (freq >= 20 && freq <= 20000 && mag >= 0 && mag <= 2.2) {
+        responseData.push({
+          frequency: freq,
+          magnitude: mag
+        });
+      }
+    }
+
+    if (responseData.length === 0) {
+      svg.append("text")
+        .attr("x", 175)
+        .attr("y", 60)
+        .attr("text-anchor", "middle")
+        .style("fill", "#E74C3C")
+        .style("font-size", "12px")
+        .text("No Valid Data Points");
+      return;
+    }
 
     // Add grid
     g.append("g")
@@ -56,6 +125,7 @@ const FrequencyResponse = ({ frequencyResponse }) => {
       .call(axisLeft(yScale)
         .tickSize(-width)
         .tickFormat("")
+        .ticks(4)
       );
 
     // Add axes
@@ -83,11 +153,6 @@ const FrequencyResponse = ({ frequencyResponse }) => {
       .text("Gain");
 
     // Add the response line
-    const responseData = frequencyResponse.frequencies.map((freq, i) => ({
-      frequency: freq,
-      magnitude: frequencyResponse.magnitude[i]
-    }));
-
     g.append("path")
       .datum(responseData)
       .attr("class", "response-line")
@@ -106,6 +171,22 @@ const FrequencyResponse = ({ frequencyResponse }) => {
       .attr("stroke", "#666")
       .attr("stroke-dasharray", "4,4")
       .attr("stroke-width", 1);
+
+    // Add some data point indicators for key frequencies
+    const keyFrequencies = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+    
+    keyFrequencies.forEach(freq => {
+      const dataPoint = responseData.find(d => Math.abs(d.frequency - freq) < freq * 0.1);
+      if (dataPoint) {
+        g.append("circle")
+          .attr("cx", xScale(dataPoint.frequency))
+          .attr("cy", yScale(dataPoint.magnitude))
+          .attr("r", 2)
+          .attr("fill", "#3498DB")
+          .attr("stroke", "white")
+          .attr("stroke-width", 1);
+      }
+    });
 
   }, [frequencyResponse]);
 

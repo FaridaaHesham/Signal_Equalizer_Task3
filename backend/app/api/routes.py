@@ -161,14 +161,19 @@ async def load_settings(request: LoadSettingsRequest):
 @router.post("/frequency-response")
 async def get_frequency_response(request: ProcessRequest):
     try:
+        print(f"Frequency response request received with {len(request.frequency_bands)} bands")
+        
         frequency_bands = [band.dict() for band in request.frequency_bands]
         response = equalizer.get_frequency_response(frequency_bands, request.sample_rate)
+        
+        print(f"Generated frequency response with {len(response['frequencies'])} points")
         
         return {
             'success': True,
             'frequency_response': response
         }
     except Exception as e:
+        print(f"Error in frequency response: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/default-bands")

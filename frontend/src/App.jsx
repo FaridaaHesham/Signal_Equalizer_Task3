@@ -39,6 +39,7 @@ function App() {
   const [showSignalCustomizer, setShowSignalCustomizer] = useState(false);
   const [customFrequencies, setCustomFrequencies] = useState([32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]);
   const [signalDuration, setSignalDuration] = useState(3.0);
+  const [isLoadingFrequencyResponse, setIsLoadingFrequencyResponse] = useState(false);
   
   const debouncedFrequencyBands = useDebounce(frequencyBands, 300);
 
@@ -113,6 +114,7 @@ function App() {
         setTimeAxis(data.time_axis);
         setSampleRate(data.sample_rate);
         updateSpectrograms(data.signal, data.signal);
+        updateFrequencyResponse();
       }
     } catch (error) {
       console.error('Error generating custom signal:', error);
@@ -175,7 +177,12 @@ function App() {
   };
 
   const updateFrequencyResponse = async () => {
+    if (!frequencyBands.length) return;
+    
+    setIsLoadingFrequencyResponse(true);
     try {
+      console.log('Updating frequency response with bands:', frequencyBands);
+      
       const response = await fetch(`${API_BASE}/frequency-response`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -186,12 +193,22 @@ function App() {
         })
       });
       
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('Frequency response data received:', data);
+      
       if (data.success) {
         setFrequencyResponse(data.frequency_response);
+      } else {
+        console.error('Backend returned success: false', data);
       }
     } catch (error) {
       console.error('Error updating frequency response:', error);
+    } finally {
+      setIsLoadingFrequencyResponse(false);
     }
   };
 
@@ -447,9 +464,21 @@ function App() {
           />
           
           {/* Frequency Response in Controls Container - Compact */}
-          {frequencyResponse && (
+          {isLoadingFrequencyResponse ? (
+            <div className="controls-frequency-response">
+              <div style={{textAlign: 'center', color: '#BDC3C7', padding: '20px'}}>
+                Calculating Frequency Response...
+              </div>
+            </div>
+          ) : frequencyResponse ? (
             <div className="controls-frequency-response">
               <FrequencyResponse frequencyResponse={frequencyResponse} />
+            </div>
+          ) : (
+            <div className="controls-frequency-response">
+              <div style={{textAlign: 'center', color: '#95A5A6', padding: '20px'}}>
+                No Frequency Response Data
+              </div>
             </div>
           )}
 

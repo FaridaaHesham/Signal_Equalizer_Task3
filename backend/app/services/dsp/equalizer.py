@@ -75,22 +75,39 @@ class Equalizer:
         """
         Generate frequency response curve for the equalizer settings
         """
-        freqs = np.linspace(0, sample_rate/2, n_points)
-        response = np.ones_like(freqs)
-        
-        for band in frequency_bands:
-            low_freq = band['low_freq']
-            high_freq = band['high_freq']
-            scale = band['scale']
+        try:
+            print(f"Generating frequency response for {len(frequency_bands)} bands")
             
-            # Find frequencies in this band
-            band_mask = (freqs >= low_freq) & (freqs <= high_freq)
-            response[band_mask] = scale
-        
-        return {
-            'frequencies': freqs.tolist(),
-            'magnitude': response.tolist()
-        }
+            # Create frequency axis from 20Hz to 20kHz (audible range)
+            freqs = np.linspace(20, 20000, n_points)  # Start from 20Hz, not 0
+            response = np.ones_like(freqs)  # Start with flat response
+            
+            for i, band in enumerate(frequency_bands):
+                low_freq = band['low_freq']
+                high_freq = band['high_freq']
+                scale = band['scale']
+                
+                print(f"Band {i+1}: {low_freq}-{high_freq}Hz, scale: {scale}")
+                
+                # Find frequencies in this band
+                band_mask = (freqs >= low_freq) & (freqs <= high_freq)
+                response[band_mask] = scale  # Apply the scale factor
+            
+            # Return the data
+            result = {
+                'frequencies': freqs.tolist(),
+                'magnitude': response.tolist()
+            }
+            
+            print(f"Generated frequency response with {len(result['frequencies'])} points")
+            return result
+            
+        except Exception as e:
+            print(f"Error in get_frequency_response: {e}")
+            return {
+                'frequencies': [],
+                'magnitude': []
+            }
     
     def create_default_bands(self, num_bands=10, min_freq=20, max_freq=20000):
         """
