@@ -1,0 +1,46 @@
+{
+  "frequency_bands": [
+    {
+      "id": 1,
+      "low_freq": 20,
+      "high_freq": 60,
+      "scale": 1,
+      "label": "32Hz",
+      "center_freq": 32
+    },
+    {
+      "id": 2,
+      "low_freq": 60,
+      "high_freq": 90,
+      "scale": 1,
+      "label": "64Hz",
+      "center_freq": 64
+    },
+    {
+      "id": 3,
+      "low_freq": 90,
+      "high_freq": 175,
+      "scale": 1,
+      "label": "125Hz",
+      "center_freq": 125
+    },
+    {
+      "id": 4,
+      "low_freq": 175,
+      "high_freq": 350,
+      "scale": 1,
+      "label": "250Hz",
+      "center_freq": 250
+    },
+    {
+      "id": 1764005268882,
+      "low_freq": 350,
+      "high_freq": 525,
+      "scale": 1,
+      "label": "350-525Hz",
+      "center_freq": 428.6607049870562
+    }
+  ],
+  "version": "1.0",
+  "created": "2025-11-24T17:32:50.572Z"
+}

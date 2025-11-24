@@ -1,42 +1,468 @@
-#root {
-  max-width: 1280px;
+.App {
+  text-align: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  min-height: 100vh;
+  color: #ecf0f1;
+}
+
+.App-header {
+  background: rgba(44, 62, 80, 0.9);
+  padding: 25px;
+  color: white;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 10;
+}
+
+.App-header h1 {
+  margin: 0 0 8px 0;
+  font-size: 2.2em;
+  font-weight: 300;
+  color: #3498db;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.App-header p {
+  margin: 0;
+  font-size: 1.1em;
+  color: #bdc3c7;
+  font-weight: 300;
+}
+
+.main-container {
+  display: flex;
+  padding: 30px;
+  gap: 30px;
+  max-width: 1700px;
   margin: 0 auto;
-  padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: flex-start;
+}
+
+
+/* Control Section - Right side, STATIC */
+.control-section {
+  flex: 1;
+  max-width: 1000px;
+  order: 2;
+  position: sticky;
+  top: 30px;
+  height: calc(100vh - 45px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Compact Frequency Response */
+.controls-frequency-response {
+  background: #34495E;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #4A6278;
+}
+
+.controls-frequency-response .frequency-response {
+  margin-bottom: 0;
+  padding: 0;
+}
+
+.controls-frequency-response .frequency-response h4 {
+  font-size: 1em;
+  margin-bottom: 8px;
+}
+
+/* Audio Playback */
+.controls-audio-playback {
+  background: #34495E;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #4A6278;
+}
+
+/* Remove the old waveform containers */
+.controls-signal-waveforms {
+  display: none;
+}
+/* Visualization Section - Left side with scrolling */
+.visualization-section {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  background: #2C3E50;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #34495E;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  order: 1;
+}
+
+/* Controls Container Elements */
+.controls-frequency-response {
+  background: #34495E;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #4A6278;
+}
+
+.controls-audio-playback {
+  background: #34495E;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #4A6278;
+}
+
+.controls-signal-waveforms {
+  background: #34495E;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #4A6278;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.waveform-container {
+  background: #2C3E50;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #4A6278;
+}
+
+.waveform-container h4 {
+  margin: 0 0 10px 0;
+  color: #3498DB;
+  font-size: 1em;
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Compact signal viewer for controls section */
+.controls-signal-waveforms .signal-viewer {
+  background: transparent;
+  padding: 0;
+  border: none;
+  box-shadow: none;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* Signal Graphs Container */
+.signal-graphs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.signal-graphs-row {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.signal-graphs-row > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Vertical Sliders Container */
+.vertical-sliders-container {
+  background: #34495E;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #4A6278;
+}
+
+.sliders-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.sliders-header h4 {
+  margin: 0 0 8px 0;
+  color: #3498DB;
+  font-size: 1.2em;
+}
+
+.sliders-header p {
+  margin: 0;
+  color: #BDC3C7;
+  font-size: 0.9em;
+}
+
+.vertical-sliders-horizontal {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 15px 0;
+  flex-wrap: wrap;
+}
+
+.band-vertical-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #2C3E50;
+  border-radius: 6px;
+  border: 1px solid #4A6278;
+  min-width: 100px;
+}
+
+.band-controls-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.range-controls-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.freq-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: space-between;
+}
+
+.freq-input-group label {
+  font-size: 0.65em;
+  color: #BDC3C7;
+  min-width: 25px;
+}
+
+.freq-input {
+  width: 45px;
+  padding: 3px;
+  border: 1px solid #4A6278;
+  border-radius: 3px;
+  background: #34495E;
+  color: white;
+  font-size: 0.65em;
+  text-align: center;
+}
+
+.freq-input:focus {
+  outline: none;
+  border-color: #3498DB;
+}
+
+.sliders-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #4A6278;
+}
+
+.db-scale {
+  display: flex;
+  gap: 40px;
+  font-size: 0.8em;
+  color: #BDC3C7;
+  font-weight: 500;
+}
+
+.scale-info {
+  font-size: 0.8em;
+  color: #95A5A6;
+  font-style: italic;
+}
+
+.btn-remove {
+  background: #E74C3C;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8em;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.btn-remove:hover:not(:disabled) {
+  background: #C0392B;
+  transform: scale(1.1);
+}
+
+.btn-remove:disabled {
+  background: #7F8C8D;
+  cursor: not-allowed;
+}
+
+/* Horizontal Spectrograms */
+.spectrograms-horizontal {
+  display: flex;
+  gap: 25px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.spectrogram-controls {
+  text-align: center;
+}
+
+.toggle-button {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.toggle-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #2C3E50;
+  padding: 30px;
+  border-radius: 12px;
+  border: 1px solid #34495E;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  max-width: 500px;
+  width: 90%;
+}
+
+.modal-content h3 {
+  margin: 0 0 20px 0;
+  color: #3498DB;
+  text-align: center;
+}
+
+.frequency-inputs, .duration-input {
+  margin-bottom: 20px;
+}
+
+.frequency-inputs label, .duration-input label {
+  display: block;
+  margin-bottom: 8px;
+  color: #BDC3C7;
+  font-weight: 500;
+}
+
+.frequency-inputs input, .duration-input input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #4A6278;
+  border-radius: 6px;
+  background: #34495E;
+  color: white;
+  font-size: 1em;
+}
+
+.frequency-inputs input:focus, .duration-input input:focus {
+  outline: none;
+  border-color: #3498DB;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* Responsive Design */
+@media (max-width: 1650px) {
+  .main-container {
+    padding: 20px;
+    max-width: 100%;
   }
-  to {
-    transform: rotate(360deg);
+}
+
+@media (max-width: 1200px) {
+  .main-container {
+    flex-direction: column;
+    padding: 20px;
+  }
+  
+  .control-section {
+    position: static;
+    height: auto;
+    max-width: 100%;
+    order: 1;
+  }
+  
+  .visualization-section {
+    order: 2;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+@media (max-width: 768px) {
+  .main-container {
+    padding: 15px;
+    gap: 20px;
   }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+  
+  .App-header {
+    padding: 20px;
+  }
+  
+  .App-header h1 {
+    font-size: 1.8em;
+  }
+  
+  .signal-graphs-row,
+  .vertical-sliders-horizontal,
+  .spectrograms-horizontal,
+  .controls-signal-waveforms {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .vertical-sliders-horizontal {
+    gap: 15px;
+  }
+  
+  .band-vertical-container {
+    min-width: 100px;
+    padding: 10px;
+  }
+  
+  .freq-input {
+    width: 45px;
+  }
+  
+  .sliders-footer {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
 }
