@@ -41,11 +41,11 @@ class FFTProcessor:
             if i < j:
                 x[i], x[j] = x[j], x[i]
         
-        # Iterative FFT - optimized
+        # Iterative FFT - optimized main fft computation
         length = 2
         while length <= n:
             half_len = length // 2
-            # Precompute factors for better performance
+            # Precompute factors for better performance(twiddle factors)
             factors = np.exp(-2j * np.pi * np.arange(half_len) / length)
             for i in range(0, n, length):
                 for j in range(half_len):
@@ -116,42 +116,86 @@ class FFTProcessor:
                 'frequencies': []
             }
     
-    def compute_spectrogram(self, signal, sample_rate, window_size=512, hop_size=128):  # Smaller windows for speed
+    def compute_spectrogram(self, signal, sample_rate, window_size=512, hop_size=256):
         """
-        Compute spectrogram using STFT with our custom FFT - OPTIMIZED
+        Compute spectrogram using STFT with our custom FFT - FIXED FOR REAL SIGNALS
         """
-        n = len(signal)
-        
-        # Use smaller windows for better performance
-        if n < window_size:
-            signal = np.pad(signal, (0, window_size - n), 'constant')
-            n = window_size
-        
-        # Calculate number of windows
-        num_windows = 1 + (n - window_size) // hop_size
-        
-        # Initialize spectrogram matrix
-        spectrogram = []
-        
-        for i in range(num_windows):
-            start = i * hop_size
-            end = start + window_size
+        try:
+            n = len(signal)
             
-            if end > n:
-                break
+            # Handle empty or very short signals
+            if n == 0:
+                return []
+            
+            print(f"Computing spectrogram: signal_length={n}, window_size={window_size}, hop_size={hop_size}")
+            
+            # Calculate number of windows
+            num_windows = 1 + (n - window_size) // hop_size
+            
+            # Ensure we have at least one window
+            if num_windows <= 0:
+                num_windows = 1
+                # If signal is shorter than window, pad it
+                if n < window_size:
+                    signal = np.pad(signal, (0, window_size - n), 'constant')
+                    n = window_size
+            
+            print(f"Number of windows: {num_windows}")
+            
+            # Initialize spectrogram matrix - only positive frequencies
+            spectrogram = []
+            
+            for i in range(num_windows):
+                start = i * hop_size
+                end = start + window_size
                 
-            # Extract window and apply Hamming window
-            window = signal[start:end]
-            window = window * np.hamming(len(window))
+                # Handle the last window that might extend beyond signal length
+                if end > n:
+                    window = np.pad(signal[start:], (0, end - n), 'constant')
+                else:
+                    window = signal[start:end]
+                
+                # Apply Hamming window
+                window = window * np.hamming(len(window))
+                
+                # Compute FFT using our custom implementation
+                fft_result = self.fft(window)
+                
+                # Take magnitude of first half (positive frequencies)
+                # Only take up to window_size//2 for real signals
+                magnitude = np.abs(fft_result[:window_size // 2])
+                
+                # Apply dB scaling for better visualization (avoid log(0))
+                magnitude_db = 20 * np.log10(magnitude + 1e-12)  # dB scale
+                
+                spectrogram.append(magnitude_db.tolist())
             
-            # Compute FFT using our custom implementation
-            fft_result = self.fft(window)
-            magnitude = np.abs(fft_result[:window_size // 2])
+            # Convert to numpy array and transpose (time vs frequency)
+            spectrogram_array = np.array(spectrogram).T
             
-            spectrogram.append(magnitude)
-        
-        # Convert to numpy array and transpose (time vs frequency)
-        return np.array(spectrogram).T
+            print(f"Spectrogram shape: {spectrogram_array.shape}")
+            print(f"Spectrogram range: {np.min(spectrogram_array):.2f} dB to {np.max(spectrogram_array):.2f} dB")
+            
+            # Normalize for better visualization with better dynamic range
+            #if spectrogram_array.size > 0:
+                # Set reasonable dB range for audio signals
+                # min_val = np.min(spectrogram_array)
+               #  max_val = np.max(spectrogram_array)
+                
+                # For audio signals, typical dynamic range is -80dB to 0dB
+                # Clip to reasonable range for better visualization
+                # spectrogram_array = np.clip(spectrogram_array, -80, 0)
+                
+                # Normalize to 0-1 range
+               #  spectrogram_array = (spectrogram_array - (-80)) / (0 - (-80))
+            
+            return spectrogram_array.tolist()
+            
+        except Exception as e:
+            print(f"Error in compute_spectrogram: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
     
     def get_frequency_bins(self, signal_length, sample_rate):
         """

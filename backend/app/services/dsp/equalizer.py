@@ -6,12 +6,16 @@ class Equalizer:
     
     def apply_equalizer(self, signal, frequency_bands, sample_rate=44100):
         """
-        Apply equalizer adjustments to signal using custom FFT
+        Apply equalizer adjustments to signal using custom FFT - FIXED
         """
         from app.services.dsp.fft_processor import FFTProcessor
         processor = FFTProcessor()
         
-        # Convert to frequency domain
+        # Store original signal length for later
+        original_length = len(signal)
+        print(f"Original signal length: {original_length}")
+        
+        # Convert to frequency domain - use exact length, no padding for now
         freq_domain = processor.fft(signal)
         n = len(freq_domain)
         
@@ -53,17 +57,24 @@ class Equalizer:
         # Convert back to time domain
         processed_signal = processor.ifft(output_freq)
         
-        # Ensure real output and same length as input
+        # Ensure real output and trim to EXACT original signal length (no padding)
         processed_signal = np.real(processed_signal)
         
-        # Trim to original signal length to avoid padding issues
-        if len(processed_signal) > len(signal):
-            processed_signal = processed_signal[:len(signal)]
-        elif len(processed_signal) < len(signal):
-            processed_signal = np.pad(processed_signal, (0, len(signal) - len(processed_signal)))
+        # CRITICAL FIX: Trim to exact original length
+        if len(processed_signal) > original_length:
+            processed_signal = processed_signal[:original_length]
+        elif len(processed_signal) < original_length:
+            # This shouldn't happen, but pad if necessary
+            processed_signal = np.pad(processed_signal, (0, original_length - len(processed_signal)))
         
-        # DEBUG: Check if signals are different when they shouldn't be
-        if not bands_changed:
+        print(f"Processed signal length: {len(processed_signal)}")
+        
+        # DEBUG: Check if signals are actually different
+        if bands_changed:
+            max_diff = np.max(np.abs(processed_signal - signal))
+            rms_diff = np.sqrt(np.mean((processed_signal - signal)**2))
+            print(f"Equalizer: Signals are different - Max diff: {max_diff:.6f}, RMS diff: {rms_diff:.6f}")
+        else:
             max_diff = np.max(np.abs(processed_signal - signal))
             print(f"Equalizer: No bands changed, max difference: {max_diff}")
             if max_diff > 1e-10:
