@@ -61,8 +61,12 @@ async def process_signal(request: ProcessRequest):
         signal = np.array(request.signal)
         frequency_bands = [band.dict() for band in request.frequency_bands]
         
+        print(f"Processing signal: length={len(signal)}, bands={len(frequency_bands)}")
+        
         # Apply equalizer
         processed_signal = equalizer.apply_equalizer(signal, frequency_bands, request.sample_rate)
+        
+        print(f"Processing complete: output length={len(processed_signal)}")
         
         return {
             'success': True,
@@ -70,6 +74,7 @@ async def process_signal(request: ProcessRequest):
             'sample_rate': request.sample_rate
         }
     except Exception as e:
+        print(f"Error in process_signal: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/spectrogram")
@@ -77,15 +82,21 @@ async def get_spectrogram(request: SpectrogramRequest):
     try:
         signal = np.array(request.signal)
         
+        print(f"Computing spectrogram for signal length: {len(signal)}")
+        
         # Generate spectrogram
         spectrogram = fft_processor.compute_spectrogram(signal, request.sample_rate)
         
+        print(f"Spectrogram computed: {len(spectrogram)} x {len(spectrogram[0]) if spectrogram and len(spectrogram) > 0 else 0}")
+        
+        # Return the spectrogram directly (it's already a list)
         return {
             'success': True,
-            'spectrogram': spectrogram.tolist(),
+            'spectrogram': spectrogram,
             'sample_rate': request.sample_rate
         }
     except Exception as e:
+        print(f"Spectrogram error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/fft-spectrum")

@@ -25,6 +25,77 @@ function useDebounce(value, delay) {
   return debouncedValue;
 }
 
+// Enhanced normalization with difference calculation
+const normalizeSpectrograms = (inputSpectrogram, outputSpectrogram) => {
+  if (!inputSpectrogram || !outputSpectrogram) return { 
+    normalizedInput: null, 
+    normalizedOutput: null,
+    differenceSpectrogram: null 
+  };
+  
+  // Find global min and max across both spectrograms
+  let globalMin = Infinity;
+  let globalMax = -Infinity;
+  
+  // Check input spectrogram
+  for (let i = 0; i < inputSpectrogram.length; i++) {
+    for (let j = 0; j < inputSpectrogram[i].length; j++) {
+      const val = inputSpectrogram[i][j];
+      if (val < globalMin) globalMin = val;
+      if (val > globalMax) globalMax = val;
+    }
+  }
+  
+  // Check output spectrogram
+  for (let i = 0; i < outputSpectrogram.length; i++) {
+    for (let j = 0; j < outputSpectrogram[i].length; j++) {
+      const val = outputSpectrogram[i][j];
+      if (val < globalMin) globalMin = val;
+      if (val > globalMax) globalMax = val;
+    }
+  }
+  
+  // If all values are the same, use default range
+  if (globalMin === globalMax) {
+    globalMin = -80;
+    globalMax = 0;
+  }
+  
+  console.log(`Global spectrogram range: ${globalMin.toFixed(2)} dB to ${globalMax.toFixed(2)} dB`);
+  
+  // Normalize both spectrograms to 0-1 using the same global range
+  const normalizeValue = (value) => {
+    // Clip to reasonable dB range for audio
+    const clipped = Math.max(-80, Math.min(0, value));
+    return (clipped - globalMin) / (globalMax - globalMin);
+  };
+  
+  const normalizedInput = inputSpectrogram.map(row => 
+    row.map(value => normalizeValue(value))
+  );
+  
+  const normalizedOutput = outputSpectrogram.map(row => 
+    row.map(value => normalizeValue(value))
+  );
+  
+  // Calculate difference spectrogram
+  const differenceSpectrogram = inputSpectrogram.map((row, i) => 
+    row.map((inputVal, j) => {
+      const outputVal = outputSpectrogram[i][j];
+      // Calculate dB difference (positive = boost, negative = cut)
+      const diff = outputVal - inputVal;
+      // Normalize difference to -1 to 1 range for visualization
+      return Math.max(-1, Math.min(1, diff / 20)); // Scale to make differences more visible
+    })
+  );
+  
+  return { 
+    normalizedInput, 
+    normalizedOutput, 
+    differenceSpectrogram 
+  };
+};
+
 function App() {
   const [originalSignal, setOriginalSignal] = useState([]);
   const [processedSignal, setProcessedSignal] = useState([]);
@@ -33,7 +104,11 @@ function App() {
   const [sampleRate, setSampleRate] = useState(44100);
   const [inputSpectrogram, setInputSpectrogram] = useState(null);
   const [outputSpectrogram, setOutputSpectrogram] = useState(null);
+  const [normalizedInputSpectrogram, setNormalizedInputSpectrogram] = useState(null);
+  const [normalizedOutputSpectrogram, setNormalizedOutputSpectrogram] = useState(null);
+  const [differenceSpectrogram, setDifferenceSpectrogram] = useState(null);
   const [showSpectrograms, setShowSpectrograms] = useState(false);
+  const [showDifference, setShowDifference] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [frequencyResponse, setFrequencyResponse] = useState(null);
   const [showSignalCustomizer, setShowSignalCustomizer] = useState(false);
@@ -54,6 +129,16 @@ function App() {
       updateFrequencyResponse();
     }
   }, [debouncedFrequencyBands]);
+
+  // Update normalized spectrograms when raw spectrograms change
+  useEffect(() => {
+    if (inputSpectrogram && outputSpectrogram) {
+      const { normalizedInput, normalizedOutput, differenceSpectrogram } = normalizeSpectrograms(inputSpectrogram, outputSpectrogram);
+      setNormalizedInputSpectrogram(normalizedInput);
+      setNormalizedOutputSpectrogram(normalizedOutput);
+      setDifferenceSpectrogram(differenceSpectrogram);
+    }
+  }, [inputSpectrogram, outputSpectrogram]);
 
   const generateSyntheticSignal = async () => {
     try {
@@ -175,7 +260,10 @@ function App() {
       
       const data = await response.json();
       if (data.success) {
+        console.log('Processing complete, setting processed signal:', data.processed_signal.length);
         setProcessedSignal(data.processed_signal);
+        
+        // Update spectrograms with ORIGINAL and PROCESSED signals
         updateSpectrograms(originalSignal, data.processed_signal);
       }
     } catch (error) {
@@ -187,26 +275,48 @@ function App() {
 
   const updateSpectrograms = async (inputSignal, outputSignal) => {
     try {
+      console.log('Updating spectrograms - Input length:', inputSignal.length, 'Output length:', outputSignal.length);
+      
+      // Ensure we have valid signals
+      if (!inputSignal.length || !outputSignal.length) {
+        console.error('Cannot update spectrograms: empty signals');
+        return;
+      }
+
       const inputResponse = await fetch(`${API_BASE}/spectrogram`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signal: inputSignal, sample_rate: sampleRate })
+        body: JSON.stringify({ 
+          signal: inputSignal, 
+          sample_rate: sampleRate
+        })
       });
       
       const inputData = await inputResponse.json();
+      
       if (inputData.success) {
+        console.log('Input spectrogram data received');
         setInputSpectrogram(inputData.spectrogram);
+      } else {
+        console.error('Input spectrogram error:', inputData.error);
       }
 
       const outputResponse = await fetch(`${API_BASE}/spectrogram`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signal: outputSignal, sample_rate: sampleRate })
+        body: JSON.stringify({ 
+          signal: outputSignal, 
+          sample_rate: sampleRate
+        })
       });
       
       const outputData = await outputResponse.json();
+      
       if (outputData.success) {
+        console.log('Output spectrogram data received');
         setOutputSpectrogram(outputData.spectrogram);
+      } else {
+        console.error('Output spectrogram error:', outputData.error);
       }
     } catch (error) {
       console.error('Error updating spectrograms:', error);
@@ -340,10 +450,31 @@ function App() {
     return `${Math.round(freq)}`;
   };
 
+  // Test function to verify spectrogram differences
+  const testSpectrogramDifferences = () => {
+    console.log('=== SPECTROGRAM DEBUG INFO ===');
+    console.log('Original signal length:', originalSignal.length);
+    console.log('Processed signal length:', processedSignal.length);
+    console.log('Input spectrogram:', inputSpectrogram ? `${inputSpectrogram.length}x${inputSpectrogram[0]?.length || 0}` : 'null');
+    console.log('Output spectrogram:', outputSpectrogram ? `${outputSpectrogram.length}x${outputSpectrogram[0]?.length || 0}` : 'null');
+    console.log('Normalized input spectrogram:', normalizedInputSpectrogram ? `${normalizedInputSpectrogram.length}x${normalizedInputSpectrogram[0]?.length || 0}` : 'null');
+    console.log('Normalized output spectrogram:', normalizedOutputSpectrogram ? `${normalizedOutputSpectrogram.length}x${normalizedOutputSpectrogram[0]?.length || 0}` : 'null');
+    console.log('Difference spectrogram:', differenceSpectrogram ? `${differenceSpectrogram.length}x${differenceSpectrogram[0]?.length || 0}` : 'null');
+    console.log('Frequency bands:', frequencyBands);
+    
+    // Check if signals are actually different
+    if (originalSignal.length && processedSignal.length) {
+      let maxDiff = 0;
+      for (let i = 0; i < Math.min(originalSignal.length, processedSignal.length); i++) {
+        const diff = Math.abs(originalSignal[i] - processedSignal[i]);
+        if (diff > maxDiff) maxDiff = diff;
+      }
+      console.log('Max difference between signals:', maxDiff);
+    }
+  };
+
   return (
     <div className="App">
-      {/* Header removed completely */}
-
       <div className="main-container">
         {/* Visualization Section - Left side */}
         <div className="visualization-section">
@@ -395,6 +526,21 @@ function App() {
             <div className="sliders-header">
               <h4>Frequency Band Controls</h4>
               <p>Adjust amplitude scales (0-2) for each frequency subdivision</p>
+              <button 
+                onClick={testSpectrogramDifferences}
+                style={{
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  backgroundColor: '#3498DB',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
+                  marginTop: '5px'
+                }}
+              >
+                Debug Spectrograms
+              </button>
             </div>
             
             <div className="vertical-sliders-horizontal">
@@ -467,18 +613,52 @@ function App() {
             >
               {showSpectrograms ? 'Hide Spectrograms' : 'Show Spectrograms'}
             </button>
+            {showSpectrograms && (
+              <button 
+                onClick={() => setShowDifference(!showDifference)}
+                className="toggle-button"
+                style={{ marginLeft: '10px' }}
+              >
+                {showDifference ? 'Show Normal' : 'Show Difference'}
+              </button>
+            )}
           </div>
 
           {showSpectrograms && (
             <div className="spectrograms-horizontal">
-              <Spectrogram
-                title="Input Spectrogram"
-                spectrogramData={inputSpectrogram}
-              />
-              <Spectrogram
-                title="Output Spectrogram"
-                spectrogramData={outputSpectrogram}
-              />
+              {showDifference ? (
+                <>
+                  <Spectrogram
+                    title="Difference Spectrogram (Output - Input)"
+                    spectrogramData={differenceSpectrogram}
+                  />
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px',
+                    color: '#BDC3C7',
+                    textAlign: 'center'
+                  }}>
+                    <h4>Difference Spectrogram</h4>
+                    <p>Red: Frequencies boosted by equalizer</p>
+                    <p>Blue: Frequencies cut by equalizer</p>
+                    <p>Green: No change</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Spectrogram
+                    title="Input Spectrogram"
+                    spectrogramData={normalizedInputSpectrogram}
+                  />
+                  <Spectrogram
+                    title="Output Spectrogram"
+                    spectrogramData={normalizedOutputSpectrogram}
+                  />
+                </>
+              )}
             </div>
           )}
         </div>
