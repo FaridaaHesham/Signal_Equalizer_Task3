@@ -6,6 +6,8 @@ import Spectrogram from './components/Spectrogram';
 import AudioControls from './components/AudioControls';
 import FrequencyResponse from './components/FrequencyResponse';
 import VerticalSlider from './components/VerticalSlider';
+import useAnimalData from './hooks/useAnimalData';
+import { generateAnimalBands, handleAnimalSelection } from './utils/animalBandGenerator';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -41,10 +43,30 @@ function App() {
   const [signalDuration, setSignalDuration] = useState(3.0);
   const [isLoadingFrequencyResponse, setIsLoadingFrequencyResponse] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('');
+  const [currentMode, setCurrentMode] = useState('generic');
+  const [selectedAnimals, setSelectedAnimals] = useState([]);
+  const [customVoices, setCustomVoices] = useState([]);
   
+  const { animalData, isLoading: isLoadingAnimalData, error: animalDataError } = useAnimalData();
   const debouncedFrequencyBands = useDebounce(frequencyBands, 300);
 
+  // Default generic bands
+  const defaultGenericBands = [
+    { id: 1, low_freq: 20, high_freq: 60, scale: 1.0, label: '32Hz', center_freq: 32 },
+    { id: 2, low_freq: 60, high_freq: 90, scale: 1.0, label: '64Hz', center_freq: 64 },
+    { id: 3, low_freq: 90, high_freq: 175, scale: 1.0, label: '125Hz', center_freq: 125 },
+    { id: 4, low_freq: 175, high_freq: 350, scale: 1.0, label: '250Hz', center_freq: 250 },
+    { id: 5, low_freq: 350, high_freq: 700, scale: 1.0, label: '500Hz', center_freq: 500 },
+    { id: 6, low_freq: 700, high_freq: 1400, scale: 1.0, label: '1kHz', center_freq: 1000 },
+    { id: 7, low_freq: 1400, high_freq: 2800, scale: 1.0, label: '2kHz', center_freq: 2000 },
+    { id: 8, low_freq: 2800, high_freq: 5600, scale: 1.0, label: '4kHz', center_freq: 4000 },
+    { id: 9, low_freq: 5600, high_freq: 11200, scale: 1.0, label: '8kHz', center_freq: 8000 },
+    { id: 10, low_freq: 11200, high_freq: 20000, scale: 1.0, label: '16kHz', center_freq: 16000 }
+  ];
+
+  // Initialize with generic bands
   useEffect(() => {
+    setFrequencyBands(defaultGenericBands);
     generateSyntheticSignal();
   }, []);
 
@@ -54,6 +76,64 @@ function App() {
       updateFrequencyResponse();
     }
   }, [debouncedFrequencyBands]);
+
+  // Update animal bands when selection changes
+  useEffect(() => {
+    if (currentMode === 'animals' && selectedAnimals.length > 0) {
+      const newBands = generateAnimalBands(selectedAnimals);
+      setFrequencyBands(newBands);
+    }
+  }, [selectedAnimals, currentMode]);
+
+  const handleAnimalSelectionWrapper = (animalLabel) => {
+    setSelectedAnimals(prev => 
+      handleAnimalSelection(prev, animalLabel, animalData, 3)
+    );
+  };
+
+  const analyzeVoice = async (file, voiceName = "custom_voice") => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('voice_name', voiceName);
+
+      const response = await fetch(`${API_BASE}/analyze-voice`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert(`Voice analysis completed! Profile "${voiceName}" has been saved.`);
+        loadCustomVoices();
+        return data.analysis;
+      } else {
+        alert('Error analyzing voice: ' + data.error);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error analyzing voice:', error);
+      alert('Error analyzing voice file');
+      return null;
+    }
+  };
+
+  const loadCustomVoices = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/custom-voices`);
+      const data = await response.json();
+      if (data.success) {
+        setCustomVoices(data.voices);
+      }
+    } catch (error) {
+      console.error('Error loading custom voices:', error);
+    }
+  };
+
+  // Call loadCustomVoices on component mount
+  useEffect(() => {
+    loadCustomVoices();
+  }, []);
 
   const generateSyntheticSignal = async () => {
     try {
@@ -74,20 +154,6 @@ function App() {
         setTimeAxis(data.time_axis);
         setSampleRate(data.sample_rate);
         setUploadedFileName('');
-        
-        const defaultBands = [
-          { id: 1, low_freq: 20, high_freq: 60, scale: 1.0, label: '32Hz', center_freq: 32 },
-          { id: 2, low_freq: 60, high_freq: 90, scale: 1.0, label: '64Hz', center_freq: 64 },
-          { id: 3, low_freq: 90, high_freq: 175, scale: 1.0, label: '125Hz', center_freq: 125 },
-          { id: 4, low_freq: 175, high_freq: 350, scale: 1.0, label: '250Hz', center_freq: 250 },
-          { id: 5, low_freq: 350, high_freq: 700, scale: 1.0, label: '500Hz', center_freq: 500 },
-          { id: 6, low_freq: 700, high_freq: 1400, scale: 1.0, label: '1kHz', center_freq: 1000 },
-          { id: 7, low_freq: 1400, high_freq: 2800, scale: 1.0, label: '2kHz', center_freq: 2000 },
-          { id: 8, low_freq: 2800, high_freq: 5600, scale: 1.0, label: '4kHz', center_freq: 4000 },
-          { id: 9, low_freq: 5600, high_freq: 11200, scale: 1.0, label: '8kHz', center_freq: 8000 },
-          { id: 10, low_freq: 11200, high_freq: 20000, scale: 1.0, label: '16kHz', center_freq: 16000 }
-        ];
-        setFrequencyBands(defaultBands);
         
         updateSpectrograms(data.signal, data.signal);
         updateFrequencyResponse();
@@ -218,8 +284,6 @@ function App() {
     
     setIsLoadingFrequencyResponse(true);
     try {
-      console.log('Updating frequency response with bands:', frequencyBands);
-      
       const response = await fetch(`${API_BASE}/frequency-response`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -235,7 +299,6 @@ function App() {
       }
       
       const data = await response.json();
-      console.log('Frequency response data received:', data);
       
       if (data.success) {
         setFrequencyResponse(data.frequency_response);
@@ -316,6 +379,14 @@ function App() {
     if (frequencyBands.length > 1) {
       const newBands = frequencyBands.filter((_, i) => i !== index);
       setFrequencyBands(newBands);
+      
+      // If in animal mode, update selected animals
+      if (currentMode === 'animals') {
+        const removedAnimal = frequencyBands[index].animal;
+        if (removedAnimal) {
+          setSelectedAnimals(prev => prev.filter(a => a.label !== removedAnimal.label));
+        }
+      }
     }
   };
 
@@ -326,9 +397,10 @@ function App() {
       low_freq: parseFloat(lowFreq) || 20,
       high_freq: parseFloat(highFreq) || 20000,
       center_freq: Math.sqrt(lowFreq * highFreq),
-      label: highFreq < 1000 ? 
-        `${Math.round(lowFreq)}-${Math.round(highFreq)}Hz` : 
-        `${Math.round(lowFreq/1000)}-${Math.round(highFreq/1000)}kHz`
+      label: currentMode === 'animals' ? newBands[index].label : 
+             (highFreq < 1000 ? 
+              `${Math.round(lowFreq)}-${Math.round(highFreq)}Hz` : 
+              `${Math.round(lowFreq/1000)}-${Math.round(highFreq/1000)}kHz`)
     };
     setFrequencyBands(newBands);
   };
@@ -340,10 +412,23 @@ function App() {
     return `${Math.round(freq)}`;
   };
 
+  const handleModeChange = (mode) => {
+    setCurrentMode(mode);
+    
+    if (mode === 'generic') {
+      // Reset to generic bands
+      setFrequencyBands(defaultGenericBands);
+      setSelectedAnimals([]);
+    } else if (mode === 'animals' && animalData && animalData.modes.custom_generated.length > 0) {
+      // Select first 3 animals by default and generate bands
+      const initialAnimals = animalData.modes.custom_generated.slice(0, 3);
+      setSelectedAnimals(initialAnimals);
+      // Bands will be generated by the useEffect above
+    }
+  };
+
   return (
     <div className="App">
-      {/* Header removed completely */}
-
       <div className="main-container">
         {/* Visualization Section - Left side */}
         <div className="visualization-section">
@@ -393,8 +478,14 @@ function App() {
           {/* Horizontal Vertical Sliders Container */}
           <div className="vertical-sliders-container">
             <div className="sliders-header">
-              <h4>Frequency Band Controls</h4>
-              <p>Adjust amplitude scales (0-2) for each frequency subdivision</p>
+              <h4>
+                {currentMode === 'animals' ? 'Animal Frequency Range Controls' : 'Frequency Band Controls'}
+              </h4>
+              <p>
+                {currentMode === 'animals' 
+                  ? 'Adjust amplitude scales for each animal frequency range' 
+                  : 'Adjust amplitude scales (0-2) for each frequency subdivision'}
+              </p>
             </div>
             
             <div className="vertical-sliders-horizontal">
@@ -404,46 +495,11 @@ function App() {
                     value={band.scale}
                     onChange={(value) => handleSliderChange(index, value)}
                     label={band.label}
-                    freqLabel={`${formatFrequency(band.low_freq)}-${formatFrequency(band.high_freq)}`}
+                    freqLabel={`${formatFrequency(band.low_freq)}-${formatFrequency(band.high_freq)}Hz`}
+                    color={band.color || '#3498DB'}
+                    onRemove={() => removeBand(index)}
+                    showRemove={currentMode === 'generic'}
                   />
-                  
-                  <div className="band-controls-vertical">
-                    <div className="range-controls-vertical">
-                      <div className="freq-input-group">
-                        <label>Low:</label>
-                        <input
-                          type="number"
-                          value={Math.round(band.low_freq)}
-                          onChange={(e) => updateBandRange(index, parseInt(e.target.value), band.high_freq)}
-                          className="freq-input"
-                          min="20"
-                          max="19900"
-                        />
-                        <span>Hz</span>
-                      </div>
-                      <div className="freq-input-group">
-                        <label>High:</label>
-                        <input
-                          type="number"
-                          value={Math.round(band.high_freq)}
-                          onChange={(e) => updateBandRange(index, band.low_freq, parseInt(e.target.value))}
-                          className="freq-input"
-                          min="21"
-                          max="20000"
-                        />
-                        <span>Hz</span>
-                      </div>
-                    </div>
-                    
-                    <button 
-                      onClick={() => removeBand(index)} 
-                      className="btn-remove"
-                      disabled={frequencyBands.length <= 1}
-                      title="Remove band"
-                    >
-                      ✕
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>
@@ -496,6 +552,12 @@ function App() {
             frequencyResponse={frequencyResponse}
             onCustomizeSignal={() => setShowSignalCustomizer(true)}
             onFileUpload={handleFileUpload}
+            currentMode={currentMode}
+            onModeChange={handleModeChange}
+            animalData={animalData}
+            isLoadingAnimalData={isLoadingAnimalData}
+            selectedAnimals={selectedAnimals}
+            onAnimalSelection={handleAnimalSelectionWrapper}
           />
           
           {/* Frequency Response */}
