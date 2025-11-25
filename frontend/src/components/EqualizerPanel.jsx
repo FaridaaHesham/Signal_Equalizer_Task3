@@ -10,7 +10,8 @@ const EqualizerPanel = ({
   onReset,
   isProcessing,
   frequencyResponse,
-  onCustomizeSignal
+  onCustomizeSignal,
+  onFileUpload
 }) => {
 
   const addBand = () => {
@@ -46,6 +47,10 @@ const EqualizerPanel = ({
     onBandsChange(defaultBands);
   };
 
+  const handleFileUpload = (event) => {
+    onFileUpload(event);
+  };
+
   return (
     <div className="equalizer-panel">
       <div className="panel-header">
@@ -76,6 +81,22 @@ const EqualizerPanel = ({
         <button onClick={onGenerateSignal} className="btn btn-generate">
           New Signal
         </button>
+        
+        {/* File Upload Button */}
+        <label className="btn btn-upload" style={{ 
+          background: 'linear-gradient(135deg, #27AE60, #2ECC71)',
+          color: 'white',
+          cursor: 'pointer'
+        }}>
+          Upload WAV
+          <input
+            type="file"
+            accept=".wav"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
+        </label>
+        
         <button onClick={onSave} className="btn btn-save">
           Save
         </button>

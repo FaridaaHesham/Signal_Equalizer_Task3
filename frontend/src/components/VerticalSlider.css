@@ -2,45 +2,48 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
   position: relative;
-  z-index: 1; /* Ensure each slider has its own stacking context */
+  z-index: 1;
+  height: 100px;
+  justify-content: flex-end;
 }
 
 .slider-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   position: relative;
+  height: 100%;
 }
 
 .slider-track {
-  width: 16px;
-  height: 180px;
+  width: 12px;
+  height: 80px;
   background: linear-gradient(to top, #7F8C8D, #BDC3C7, #ECF0F1);
-  border-radius: 8px;
+  border-radius: 6px;
   position: relative;
   cursor: pointer;
   margin: 0 auto;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
   border: 1px solid #5D6D7E;
-  touch-action: none; /* Prevent browser touch actions */
+  touch-action: none;
 }
 
 .slider-thumb {
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #3498DB;
-  border: 2px solid white;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  border: 1px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   cursor: grab;
   transition: all 0.2s ease;
-  z-index: 3; /* Higher z-index for thumb */
+  z-index: 3;
   touch-action: none;
 }
 
@@ -58,45 +61,45 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   z-index: 1;
 }
 
 .db-value {
-  font-size: 0.75em;
+  font-size: 0.6em;
   font-weight: 600;
   color: #3498DB;
   background: rgba(52, 152, 219, 0.1);
-  padding: 2px 6px;
-  border-radius: 3px;
+  padding: 1px 3px;
+  border-radius: 2px;
 }
 
 .freq-label {
-  font-size: 0.7em;
+  font-size: 0.5em;
   color: #BDC3C7;
   font-weight: 500;
 }
 
 .band-label {
-  font-size: 0.75em;
+  font-size: 0.6em;
   font-weight: 600;
   color: #ECF0F1;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .slider-value-tooltip {
   position: absolute;
-  left: 25px;
+  left: 18px;
   transform: translateY(50%);
   background: #3498DB;
   color: white;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 0.65em;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.5em;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   z-index: 10;
   pointer-events: none;
 }
@@ -107,7 +110,7 @@
   right: 100%;
   top: 50%;
   transform: translateY(-50%);
-  border-width: 4px;
+  border-width: 3px;
   border-style: solid;
   border-color: transparent #3498DB transparent transparent;
 }
@@ -117,12 +120,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 4px;
+  padding: 4px;
   background: #2C3E50;
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid #4A6278;
-  min-width: 100px;
+  min-width: 70px;
   position: relative;
   z-index: 1;
+  height: 130px;
+  justify-content: space-between;
 }

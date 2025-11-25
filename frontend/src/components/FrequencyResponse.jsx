@@ -60,9 +60,9 @@ const FrequencyResponse = ({ frequencyResponse }) => {
 
     console.log(`Plotting ${frequencyResponse.frequencies.length} frequency response points`);
 
-    const margin = { top: 15, right: 10, bottom: 25, left: 35 };
-    const width = 350 - margin.left - margin.right;
-    const height = 120 - margin.top - margin.bottom;
+    const margin = { top: 10, right: 8, bottom: 20, left: 30 };
+    const width = 280 - margin.left - margin.right; // Increased width
+    const height = 120 - margin.top - margin.bottom; // Increased height
 
     const g = svg.append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -195,8 +195,8 @@ const FrequencyResponse = ({ frequencyResponse }) => {
       <h4>Frequency Response</h4>
       <svg
         ref={svgRef}
-        width={350}
-        height={120}
+        width={320} // Increased from 300
+        height={140} // Increased from 100
       />
     </div>
   );
