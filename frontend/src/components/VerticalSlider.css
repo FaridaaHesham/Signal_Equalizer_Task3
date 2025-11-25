@@ -2,10 +2,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px; /* Reduced gap */
   position: relative;
   z-index: 1;
-  height: 100px;
+  height: 110px; /* More compact */
   justify-content: flex-end;
 }
 
@@ -13,31 +13,32 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px; /* Reduced gap */
   position: relative;
   height: 100%;
+  width: 100%;
 }
 
 .slider-track {
-  width: 12px;
-  height: 80px;
-  background: linear-gradient(to top, #7F8C8D, #BDC3C7, #ECF0F1);
-  border-radius: 6px;
+  width: 10px; /* More narrow */
+  height: 100px; /* Shorter track */
+  background: linear-gradient(to top, #34495E, #5D6D7E, #7F8C8D, #BDC3C7);
+  border-radius: 5px;
   position: relative;
   cursor: pointer;
   margin: 0 auto;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
-  border: 1px solid #5D6D7E;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.2); /* Minimal shadow */
+  border: 1px solid #2C3E50;
   touch-action: none;
 }
 
 .slider-thumb {
-  width: 16px;
-  height: 16px;
+  width: 12px; /* Smaller thumb */
+  height: 12px;
   border-radius: 50%;
-  background: #3498DB;
-  border: 1px solid white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #3498DB, #2980B9);
+  border: 2px solid white; /* Thinner border */
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3); /* Minimal shadow */
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
@@ -48,8 +49,9 @@
 }
 
 .slider-thumb:hover {
-  background: #2980B9;
+  background: linear-gradient(135deg, #2980B9, #1F618D);
   transform: translateX(-50%) scale(1.05);
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
 }
 
 .slider-thumb:active {
@@ -61,45 +63,62 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 2px; /* Minimal gap */
   z-index: 1;
+  text-align: center;
+  width: 100%;
 }
 
 .db-value {
-  font-size: 0.6em;
+  font-size: 0.45em;
   font-weight: 600;
   color: #3498DB;
-  background: rgba(52, 152, 219, 0.1);
-  padding: 1px 3px;
-  border-radius: 2px;
+  background: rgba(52, 152, 219, 0.15);
+  padding: 1px 2px;
+  border-radius: 1px;
+  border: 1px solid rgba(52, 152, 219, 0.3);
+  min-width: 25px;
 }
 
 .freq-label {
-  font-size: 0.5em;
-  color: #BDC3C7;
+  font-size: 0.4em;
+  color: #ECF0F1;
   font-weight: 500;
+  background: rgba(44, 62, 80, 0.7);
+  padding: 0 1px;
+  border-radius: 1px;
+  line-height: 1.1;
+  max-width: 45px;
+  word-wrap: break-word;
 }
 
 .band-label {
-  font-size: 0.6em;
+  font-size: 0.45em;
   font-weight: 600;
   color: #ECF0F1;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.1px;
+  background: rgba(52, 152, 219, 0.2);
+  padding: 1px 2px;
+  border-radius: 1px;
+  max-width: 45px;
+  word-wrap: break-word;
+  text-align: center;
+  line-height: 1.1;
 }
 
 .slider-value-tooltip {
   position: absolute;
-  left: 18px;
+  left: 14px; /* Closer to track */
   transform: translateY(50%);
-  background: #3498DB;
+  background: #E74C3C;
   color: white;
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-size: 0.5em;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 0.45em;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.2); /* Minimal shadow */
   z-index: 10;
   pointer-events: none;
 }
@@ -110,24 +129,35 @@
   right: 100%;
   top: 50%;
   transform: translateY(-50%);
-  border-width: 3px;
+  border-width: 2px; /* Smaller arrow */
   border-style: solid;
-  border-color: transparent #3498DB transparent transparent;
+  border-color: transparent #E74C3C transparent transparent;
 }
 
-/* Ensure each band container has proper isolation */
-.band-vertical-container {
+/* Remove Button Styles */
+.btn-remove-slider {
+  background: #E74C3C;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  background: #2C3E50;
-  border-radius: 4px;
-  border: 1px solid #4A6278;
-  min-width: 70px;
-  position: relative;
-  z-index: 1;
-  height: 130px;
-  justify-content: space-between;
+  justify-content: center;
+  font-size: 0.45em;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.2); /* Minimal shadow */
+  margin-top: 1px;
+}
+
+.btn-remove-slider:hover {
+  background: #C0392B;
+  transform: scale(1.05);
+}
+
+.btn-remove-slider:active {
+  transform: scale(1.02);
 }

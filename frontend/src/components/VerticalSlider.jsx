@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import './VerticalSlider.css';
 
-const VerticalSlider = ({ value, min = 0, max = 2, onChange, label, freqLabel }) => {
+const VerticalSlider = ({ value, min = 0, max = 2, onChange, label, freqLabel, onRemove, showRemove = true }) => {
   const [showValue, setShowValue] = useState(false);
   const sliderRef = useRef(null);
 
@@ -65,6 +65,17 @@ const VerticalSlider = ({ value, min = 0, max = 2, onChange, label, freqLabel })
           <span className="freq-label">{freqLabel}</span>
           <span className="band-label">{label}</span>
         </div>
+        
+        {/* Remove Button */}
+        {showRemove && onRemove && (
+          <button 
+            onClick={onRemove}
+            className="btn-remove-slider"
+            title="Remove band"
+          >
+            ✕
+          </button>
+        )}
       </div>
     </div>
   );

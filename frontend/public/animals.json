@@ -1,0 +1,41 @@
+{
+    "modes": {
+        "custom_generated": [
+            {
+                "label": "Birds",
+                "color": "#7bef89",
+                "ranges": [
+                    [3000, 8000]
+                ]
+            },
+            {
+                "label": "Cat",
+                "color": "#b40a11",
+                "ranges": [
+                    [20000, 25000]
+                ]
+            },
+            {
+                "label": "Cow",
+                "color": "#968af6",
+                "ranges": [
+                    [40, 500]
+                ]
+            },
+            {
+                "label": "Dog",
+                "color": "#0948a2",
+                "ranges": [
+                    [125, 8000]
+                ]
+            },
+            {
+                "label": "Rooster",
+                "color": "#00b92b",
+                "ranges": [
+                    [1000, 5000]
+                ]
+            }
+        ]
+    }
+}
