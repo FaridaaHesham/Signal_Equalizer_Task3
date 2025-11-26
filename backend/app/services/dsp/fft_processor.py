@@ -79,29 +79,42 @@ class FFTProcessor:
         Returns positive frequencies only.
         """
         try:
-            signal = np.array(signal, dtype=float)
-            
+            signal = np.array(signal, dtype=np.float32)
+        
+            # Remove DC offset
+            signal = signal - np.mean(signal)
+        
+            # Apply windowing to reduce spectral leakage
+            window = np.hanning(len(signal))
+            signal = signal * window
+        
             # Downsample signal if too long for visualization
             if len(signal) > target_length:
                 step = max(1, len(signal) // target_length)
                 signal = signal[::step]
-            
+        
             if len(signal) == 0:
                 return {'magnitude': [], 'frequencies': []}
-            
+        
             fft_result = self.fft(signal)
             n = len(fft_result)
-            
+        
+            # Compute magnitude spectrum
             magnitude = np.abs(fft_result[:n//2]) / n
             frequencies = np.fft.fftfreq(n, 1/sample_rate)[:n//2]
-            
-            # Keep only positive frequencies
-            valid_indices = frequencies > 0
-            magnitude = np.nan_to_num(magnitude[valid_indices], nan=0.0)
-            frequencies = np.nan_to_num(frequencies[valid_indices], nan=0.0)
-            
-            return {'magnitude': magnitude.tolist(), 'frequencies': frequencies.tolist()}
         
+            # Keep only positive frequencies and apply smoothing
+            valid_indices = (frequencies > 0) & (frequencies <= sample_rate/2)
+            magnitude = np.nan_to_num(magnitude[valid_indices], nan=0.0, posinf=0.0, neginf=0.0)
+            frequencies = np.nan_to_num(frequencies[valid_indices], nan=0.0, posinf=0.0, neginf=0.0)
+        
+            # Apply logarithmic scaling for better visualization
+            magnitude = 20 * np.log10(magnitude + 1e-10)  # Add small value to avoid log(0)
+            magnitude = np.clip(magnitude, -80, 0)  # Clip to reasonable range
+            magnitude = (magnitude + 80) / 80  # Normalize to 0-1
+        
+            return {'magnitude': magnitude.tolist(), 'frequencies': frequencies.tolist()}
+    
         except Exception as e:
             print(f"Error in compute_fft_spectrum: {e}")
             import traceback
