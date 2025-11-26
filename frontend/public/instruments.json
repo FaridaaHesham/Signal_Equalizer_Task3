@@ -9,18 +9,25 @@
                 ]
             },
             {
-                "label": "guitar",
-                "color": "#d7ad3e",
-                "ranges": [
-                    [90, 700]
-                ]
-            },
-            {
                 "label": "Piano",
                 "color": "#28b8d7",
                 "ranges": [
                     [20, 700]
                 ]
+            },
+                        {
+                "label": "violin",
+                "color":"#d7ad3e",
+                "ranges":[
+                    [2700, 11500]
+                ]    
+            },
+                        {
+                "label": "drums",
+                "color":"#77fe48",
+                "ranges":[
+                    [350, 2800]
+                ]    
             }
         ]
     }
