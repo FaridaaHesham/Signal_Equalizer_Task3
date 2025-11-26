@@ -1,30 +1,45 @@
 .spectrograms-horizontal {
   display: flex;
   gap: 8px;
-  overflow-x: auto;    /* horizontal scroll */
-  overflow-y: hidden;  /* hide vertical scroll */
-  height: 400px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  height: 450px; /* Increased height for better visibility */
   padding: 10px;
   border: 1px solid #34495E;
   border-radius: 6px;
   background: #2C3E50;
-  flex-shrink: 0;
 }
 
-.spectrograms-horizontal::-webkit-scrollbar {
-  height: 8px;
-}
-
-.spectrograms-horizontal::-webkit-scrollbar-thumb {
-  background: #3498db;
-  border-radius: 4px;
-}
-
-.spectrograms-horizontal::-webkit-scrollbar-track {
-  background: #1a252f;
+.spectrogram-container {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .spectrograms-horizontal canvas {
-  flex-shrink: 0;   /* prevent canvas from shrinking */
-  height: 100%;     /* full container height */
+  flex-shrink: 0;
+  max-width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* For difference spectrogram layout */
+.spectrograms-horizontal > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  .spectrograms-horizontal {
+    flex-direction: column;
+    height: auto;
+    min-height: 400px;
+  }
+  
+  .spectrogram-container {
+    margin-bottom: 10px;
+  }
 }

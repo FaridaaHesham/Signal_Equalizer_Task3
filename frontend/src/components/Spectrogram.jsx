@@ -1,64 +1,150 @@
 import React, { useEffect, useRef } from 'react';
 import './Spectrogram.css';
 
-const Spectrogram = ({ title, spectrogramData }) => {
+const Spectrogram = React.memo(({ title, spectrogramData, sampleRate = 44100, signalLength = 0 })  => {
   const canvasRef = useRef();
 
   useEffect(() => {
-    if (!spectrogramData || !spectrogramData.length || !spectrogramData[0].length) return;
+    if (!spectrogramData || !spectrogramData.length || !spectrogramData[0].length) {
+      console.log('No spectrogram data available for:', title);
+      return;
+    }
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
 
-    // Make canvas width dynamic based on spectrogram length
-    const width = Math.max(600, spectrogramData[0].length);
+    // Set canvas dimensions
+    const width = 600;
     const height = 400;
-
+    
     canvas.width = width;
     canvas.height = height;
+
+    // Clear canvas
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
 
     const rows = spectrogramData.length;
     const cols = spectrogramData[0].length;
 
-    const imageData = ctx.createImageData(width, height);
-    const data = imageData.data;
+    // Calculate time and frequency information
+    const duration = signalLength / sampleRate;
+    const maxFrequency = sampleRate / 2; // Nyquist frequency
 
-    for (let y = 0; y < height; y++) {
-      const rowIdx = Math.floor(y / height * rows);
-      for (let x = 0; x < width; x++) {
-        const colIdx = Math.floor(x / width * cols);
-        let value = spectrogramData[rowIdx][colIdx];
+    console.log(`Rendering ${title}: ${rows}x${cols}, duration: ${duration}s, maxFreq: ${maxFrequency}Hz`);
 
-        // Normalize and clamp
+    // Draw the spectrogram
+    const cellWidth = width / cols;
+    const cellHeight = height / rows;
+
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        let value = spectrogramData[y][x];
+
+        // Ensure value is in valid range
+        if (value == null || isNaN(value)) {
+          value = 0;
+        }
         value = Math.max(0, Math.min(1, value));
 
-        // Viridis-like colormap
-        const r = Math.floor(255 * value);
-        const g = Math.floor(255 * (1 - value));
-        const b = 128;
+        // Pink/red color scale: grey (low) -> pink -> red (high)
+        let r, g, b;
+        
+        if (value < 0.3) {
+          // Grey scale for low values
+          const intensity = value / 0.3;
+          r = g = b = Math.floor(80 + intensity * 100);
+        } else if (value < 0.7) {
+          // Pink scale for medium values
+          const intensity = (value - 0.3) / 0.4;
+          r = Math.floor(180 + intensity * 75); // 180-255
+          g = Math.floor(100 + intensity * 50); // 100-150
+          b = Math.floor(150 + intensity * 50); // 150-200
+        } else {
+          // Red scale for high values
+          const intensity = (value - 0.7) / 0.3;
+          r = 255;
+          g = Math.floor(150 - intensity * 100); // 150-50
+          b = Math.floor(200 - intensity * 150); // 200-50
+        }
 
-        const idx = (y * width + x) * 4;
-        data[idx] = r;
-        data[idx + 1] = g;
-        data[idx + 2] = b;
-        data[idx + 3] = 255;
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.fillRect(x * cellWidth, (rows - y - 1) * cellHeight, cellWidth, cellHeight);
       }
     }
 
-    ctx.putImageData(imageData, 0, 0);
+    // Draw axes and labels
+    ctx.strokeStyle = '#ecf0f1';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, width, height);
 
     // Draw title
     ctx.fillStyle = '#ecf0f1';
     ctx.font = 'bold 14px Arial';
     ctx.fillText(title, 10, 20);
-  }, [spectrogramData, title]);
+
+    // Draw frequency axis (Y-axis)
+    ctx.textAlign = 'right';
+    ctx.font = '10px Arial';
+    
+    // Frequency labels (Hz)
+    const freqLabels = [
+      { freq: 0, label: '0 Hz' },
+      { freq: maxFrequency * 0.25, label: `${Math.round(maxFrequency * 0.25 / 1000)}k` },
+      { freq: maxFrequency * 0.5, label: `${Math.round(maxFrequency * 0.5 / 1000)}k` },
+      { freq: maxFrequency * 0.75, label: `${Math.round(maxFrequency * 0.75 / 1000)}k` },
+      { freq: maxFrequency, label: `${Math.round(maxFrequency / 1000)}k Hz` }
+    ];
+
+    freqLabels.forEach(({ freq, label }) => {
+      const yPos = height - (freq / maxFrequency) * height;
+      ctx.fillText(label, 45, yPos - 5);
+    });
+
+    // Draw time axis (X-axis) if we have duration information
+    if (duration > 0) {
+      ctx.textAlign = 'center';
+      const timeLabels = [
+        { time: 0, label: '0s' },
+        { time: duration * 0.25, label: `${(duration * 0.25).toFixed(1)}s` },
+        { time: duration * 0.5, label: `${(duration * 0.5).toFixed(1)}s` },
+        { time: duration * 0.75, label: `${(duration * 0.75).toFixed(1)}s` },
+        { time: duration, label: `${duration.toFixed(1)}s` }
+      ];
+
+      timeLabels.forEach(({ time, label }) => {
+        const xPos = (time / duration) * width;
+        ctx.fillText(label, xPos, height - 5);
+      });
+    }
+
+    // Draw axis titles
+    ctx.save();
+    ctx.translate(15, height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText('Frequency (Hz)', 0, 0);
+    ctx.restore();
+
+    if (duration > 0) {
+      ctx.textAlign = 'center';
+      ctx.fillText('Time (seconds)', width / 2, height - 15);
+    }
+
+  }, [spectrogramData, title, sampleRate, signalLength]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ border: '1px solid #34495E', borderRadius: '4px', flexShrink: 0 }}
-    />
+    <div className="spectrogram-container">
+      <canvas
+        ref={canvasRef}
+        style={{ 
+          border: '1px solid #34495E', 
+          borderRadius: '4px',
+          background: '#1a1a2e'
+        }}
+      />
+    </div>
   );
-};
+});
 
 export default Spectrogram;
