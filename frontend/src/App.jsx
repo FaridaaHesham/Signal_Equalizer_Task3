@@ -460,35 +460,54 @@ const handleFileUpload = async (event) => {
   }
 };
 
-  const processAudio = async () => {
-    if (!originalSignal.length) return;
+ // In App.jsx - update the processAudio function
+const processAudio = async () => {
+  if (!originalSignal.length) return;
+  
+  setIsProcessing(true);
+  try {
+    console.log('Processing audio with original signal length:', originalSignal.length);
     
-    setIsProcessing(true);
-    try {
-      const response = await fetch(`${API_BASE}/process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          signal: originalSignal,
-          frequency_bands: frequencyBands,
-          sample_rate: sampleRate
-        })
-      });
+    const response = await fetch(`${API_BASE}/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        signal: originalSignal, // Always use ORIGINAL signal, not processedSignal
+        frequency_bands: frequencyBands,
+        sample_rate: sampleRate
+      })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      console.log('Processing complete, setting processed signal:', data.processed_signal.length);
+      console.log('Signal stats:', data.signal_stats);
       
-      const data = await response.json();
-      if (data.success) {
-        console.log('Processing complete, setting processed signal:', data.processed_signal.length);
-        setProcessedSignal(data.processed_signal);
-        
-        // Update spectrograms with ORIGINAL and PROCESSED signals
-        updateSpectrograms(originalSignal, data.processed_signal);
-      }
-    } catch (error) {
-      console.error('Error processing audio:', error);
-    } finally {
-      setIsProcessing(false);
+      setProcessedSignal(data.processed_signal);
+      
+      // Update spectrograms with ORIGINAL and PROCESSED signals
+      updateSpectrograms(originalSignal, data.processed_signal);
     }
-  };
+  } catch (error) {
+    console.error('Error processing audio:', error);
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+// Also add a debug function to check signal health
+const checkSignalHealth = (signal, name) => {
+  if (!signal || signal.length === 0) {
+    console.log(`${name}: Empty signal`);
+    return;
+  }
+  
+  const max = Math.max(...signal);
+  const min = Math.min(...signal);
+  const rms = Math.sqrt(signal.reduce((sum, val) => sum + val * val, 0) / signal.length);
+  
+  console.log(`${name} Health - Max: ${max.toFixed(6)}, Min: ${min.toFixed(6)}, RMS: ${rms.toFixed(6)}`);
+};
 
   // Modified updateSpectrograms
   const updateSpectrograms = async (inputSignal, outputSignal) => {

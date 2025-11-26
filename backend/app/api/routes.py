@@ -55,19 +55,30 @@ def ping():
 def health_check():
     return {"status": "healthy", "message": "Signal Equalizer API is running"}
 
-# ===== PROCESS SIGNAL =====
+# In routes.py - update the process endpoint
 @router.post("/process")
 async def process_signal(request: ProcessRequest):
     try:
-        signal = np.array(request.signal)
+        # Always start with the original signal, not a previously processed one
+        signal = np.array(request.signal, dtype=np.float32)
         frequency_bands = [band.dict() for band in request.frequency_bands]
         
-        print(f"Processing signal: length={len(signal)}, bands={len(frequency_bands)}")
+        # Check signal health before processing
+        signal_rms = np.sqrt(np.mean(signal**2))
+        print(f"Processing signal - Length: {len(signal)}, RMS: {signal_rms:.6f}, Bands: {len(frequency_bands)}")
         
-        # Apply equalizer
+        if signal_rms < 1e-6:  # Signal is too quiet
+            print("Warning: Input signal is very quiet, may result in muted output")
+        
+        # Apply equalizer - this should work on the ORIGINAL signal
         processed_signal = equalizer.apply_equalizer(signal, frequency_bands, request.sample_rate)
         
-        print(f"Processing complete: output length={len(processed_signal)}")
+        # Check output signal health
+        processed_rms = np.sqrt(np.mean(processed_signal**2))
+        print(f"Processing complete - Output RMS: {processed_rms:.6f}, Length: {len(processed_signal)}")
+        
+        if processed_rms < 1e-6:
+            print("WARNING: Output signal is muted!")
         
         # Compute spectrogram of processed signal
         spectrogram_processed = fft_processor.compute_spectrogram(processed_signal, request.sample_rate)
@@ -78,10 +89,16 @@ async def process_signal(request: ProcessRequest):
             'success': True,
             'processed_signal': processed_signal.tolist(),
             'spectrogram_processed': spectrogram_processed,
-            'sample_rate': request.sample_rate
+            'sample_rate': request.sample_rate,
+            'signal_stats': {
+                'input_rms': float(signal_rms),
+                'output_rms': float(processed_rms)
+            }
         }
     except Exception as e:
         print(f"Error in process_signal: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 # ===== GET SPECTROGRAM =====
@@ -162,22 +179,66 @@ async def upload_audio(file: UploadFile = File(...)):
     try:
         if not file.filename.lower().endswith('.wav'):
             return {'success': False, 'error': 'Only WAV files are supported'}
+        
         contents = await file.read()
         sample_rate, audio_data = wavfile.read(io.BytesIO(contents))
+        
+        print(f"Uploaded audio - Sample rate: {sample_rate}, Shape: {audio_data.shape}, Dtype: {audio_data.dtype}")
+        
+        # Handle multi-channel audio
         if len(audio_data.shape) > 1:
+            print(f"Converting {audio_data.shape[1]} channels to mono")
             audio_data = np.mean(audio_data, axis=1)
-        audio_data = audio_data.astype(np.float32)
+        
+        # Convert to float32 and normalize based on data type
         if audio_data.dtype == np.int16:
-            audio_data = audio_data / 32768.0
+            audio_data = audio_data.astype(np.float32) / 32768.0
+            print("Converted from int16 to float32")
         elif audio_data.dtype == np.int32:
-            audio_data = audio_data / 2147483648.0
+            audio_data = audio_data.astype(np.float32) / 2147483648.0
+            print("Converted from int32 to float32")
+        elif audio_data.dtype == np.uint8:
+            audio_data = (audio_data.astype(np.float32) - 128) / 128.0
+            print("Converted from uint8 to float32")
         elif audio_data.dtype == np.float32:
-            audio_data = np.clip(audio_data, -1.0, 1.0)
-        max_duration = 10
+            audio_data = audio_data.astype(np.float32)
+            print("Already float32, no conversion needed")
+        else:
+            print(f"Unsupported dtype: {audio_data.dtype}, attempting generic conversion")
+            audio_data = audio_data.astype(np.float32)
+            # Normalize based on max possible value for the dtype
+            if np.issubdtype(audio_data.dtype, np.integer):
+                info = np.iinfo(audio_data.dtype)
+                audio_data = audio_data / info.max
+        
+        # Remove DC offset (center around zero)
+        dc_offset = np.mean(audio_data)
+        audio_data = audio_data - dc_offset
+        print(f"Removed DC offset: {dc_offset:.6f}")
+        
+        # Normalize to prevent clipping (with headroom)
+        max_val = np.max(np.abs(audio_data))
+        print(f"Max absolute value before normalization: {max_val:.6f}")
+        
+        if max_val > 0:
+            # Use 0.9 for headroom to prevent clipping
+            audio_data = audio_data * (0.9 / max_val)
+            print(f"Normalized with factor: {0.9 / max_val:.6f}")
+        
+        # Limit duration to prevent memory issues
+        max_duration = 30  # Increased to 30 seconds
         max_samples = sample_rate * max_duration
         if len(audio_data) > max_samples:
+            print(f"Truncating from {len(audio_data)} to {max_samples} samples")
             audio_data = audio_data[:max_samples]
+        
+        # Final audio statistics
+        final_max = np.max(np.abs(audio_data))
+        final_rms = np.sqrt(np.mean(audio_data**2))
+        print(f"Final audio - Max: {final_max:.6f}, RMS: {final_rms:.6f}, Length: {len(audio_data)}")
+        
         time_axis = np.linspace(0, len(audio_data) / sample_rate, len(audio_data))
+        
         return {
             'success': True,
             'signal': audio_data.tolist(),
@@ -188,8 +249,10 @@ async def upload_audio(file: UploadFile = File(...)):
         }
     except Exception as e:
         print(f"Error processing audio file: {e}")
+        import traceback
+        traceback.print_exc()
         return {'success': False, 'error': f'Error processing audio file: {str(e)}'}
-
+    
 # ===== SAVE / LOAD SETTINGS =====
 @router.post("/save-settings")
 async def save_settings(request: SaveSettingsRequest):
