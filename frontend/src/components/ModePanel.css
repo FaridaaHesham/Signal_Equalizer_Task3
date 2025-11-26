@@ -1,10 +1,11 @@
-.animal-selection {
+/* ModePanel.css */
+.mode-selection-panel {
   margin-bottom: 8px;
   padding-bottom: 6px;
   border-bottom: 1px solid #34495E;
 }
 
-.animal-selection h4 {
+.mode-selection-panel h4 {
   margin: 0 0 6px 0;
   color: #3498DB;
   font-size: 0.7em;
@@ -12,14 +13,14 @@
   font-weight: 600;
 }
 
-.animal-buttons {
+.mode-buttons {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
-.animal-btn {
+.mode-btn {
   padding: 3px 6px;
   border: none;
   border-radius: 3px;
@@ -35,20 +36,20 @@
   min-width: 40px;
 }
 
-.animal-btn.selected {
+.mode-btn.selected {
   background: linear-gradient(135deg, #2980B9, #1F618D);
   color: white;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(52, 152, 219, 0.4);
 }
 
-.animal-btn:hover:not(.selected) {
+.mode-btn:hover:not(.selected) {
   background: linear-gradient(135deg, #4A6278, #34495E);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.animal-info {
+.mode-info {
   text-align: center;
   font-size: 0.6em;
   color: #BDC3C7;

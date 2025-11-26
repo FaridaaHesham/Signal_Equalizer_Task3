@@ -1,0 +1,27 @@
+{
+    "modes": {
+        "custom_generated": [
+            {
+                "label": "Drumroll",
+                "color": "#a00f37",
+                "ranges": [
+                    [200, 400]
+                ]
+            },
+            {
+                "label": "Flute",
+                "color": "#d7ad3e",
+                "ranges": [
+                    [300, 2000]
+                ]
+            },
+            {
+                "label": "Piano",
+                "color": "#28b8d7",
+                "ranges": [
+                    [27.5, 4200]
+                ]
+            }
+        ]
+    }
+}

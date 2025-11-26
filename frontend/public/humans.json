@@ -1,0 +1,28 @@
+{
+    "modes": {
+        "custom_generated": [
+            {
+                "label": "Child",
+                "color": "#77fe48",
+                "ranges": [
+                    [250, 400]
+                ]
+            },
+            {
+                "label": "Female",
+                "color": "#7d72de",
+                "ranges": [
+                    [165, 255]
+                ]
+            },
+    
+            {
+                "label": "Man",
+                "color": "#12147b",
+                "ranges": [
+                    [85, 180]
+                ]
+            }
+        ]
+    }
+}

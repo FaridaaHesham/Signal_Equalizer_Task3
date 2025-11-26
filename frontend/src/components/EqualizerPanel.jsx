@@ -1,5 +1,6 @@
+// EqualizerPanel.jsx
 import './EqualizerPanel.css';
-import AnimalModePanel from './AnimalModePanel';
+import ModePanel from './ModePanel';
 
 const EqualizerPanel = ({ 
   frequencyBands, 
@@ -17,7 +18,15 @@ const EqualizerPanel = ({
   animalData,
   isLoadingAnimalData,
   selectedAnimals,
-  onAnimalSelection
+  onAnimalSelection,
+  humanData,
+  isLoadingHumanData,
+  selectedHumans,
+  onHumanSelection,
+  instrumentData,
+  isLoadingInstrumentData,
+  selectedInstruments,
+  onInstrumentSelection
 }) => {
 
   const addBand = () => {
@@ -70,6 +79,39 @@ const EqualizerPanel = ({
     }
   };
 
+  const getModePanelProps = () => {
+    switch(currentMode) {
+      case 'animals':
+        return {
+          modeData: animalData,
+          isLoading: isLoadingAnimalData,
+          selectedItems: selectedAnimals,
+          onItemSelection: onAnimalSelection,
+          title: 'Select Animals'
+        };
+      case 'humans':
+        return {
+          modeData: humanData,
+          isLoading: isLoadingHumanData,
+          selectedItems: selectedHumans,
+          onItemSelection: onHumanSelection,
+          title: 'Select Human Voice Types'
+        };
+      case 'instruments':
+        return {
+          modeData: instrumentData,
+          isLoading: isLoadingInstrumentData,
+          selectedItems: selectedInstruments,
+          onItemSelection: onInstrumentSelection,
+          title: 'Select Instruments'
+        };
+      default:
+        return null;
+    }
+  };
+
+  const modePanelProps = getModePanelProps();
+
   return (
     <div className="equalizer-panel">
       <div className="panel-header">
@@ -103,31 +145,23 @@ const EqualizerPanel = ({
           <button 
             className={`mode-btn ${currentMode === 'humans' ? 'active' : ''}`}
             onClick={() => onModeChange('humans')}
-            disabled
-            title="Coming Soon"
+            disabled={isLoadingHumanData || !humanData}
           >
-            Humans
+            {isLoadingHumanData ? 'Loading...' : 'Humans'}
           </button>
           <button 
             className={`mode-btn ${currentMode === 'instruments' ? 'active' : ''}`}
             onClick={() => onModeChange('instruments')}
-            disabled
-            title="Coming Soon"
+            disabled={isLoadingInstrumentData || !instrumentData}
           >
-            Instruments
+            {isLoadingInstrumentData ? 'Loading...' : 'Instruments'}
           </button>
         </div>
       </div>
 
-      {/* Animal Selection (only shown in animals mode) */}
-      {currentMode === 'animals' && (
-        <AnimalModePanel
-          animalData={animalData}
-          isLoadingAnimalData={isLoadingAnimalData}
-          selectedAnimals={selectedAnimals}
-          onAnimalSelection={onAnimalSelection}
-          maxSelection={3}
-        />
+      {/* Mode-specific Selection Panel */}
+      {modePanelProps && (
+        <ModePanel {...modePanelProps} maxSelection={3} />
       )}
 
       <div className="control-buttons">
@@ -141,9 +175,9 @@ const EqualizerPanel = ({
             </button>
           </>
         )}
-        <button onClick={onReset} className="btn btn-reset">
-          Reset Scales
-        </button>
+<button onClick={onReset} className="btn btn-reset">
+  {currentMode === 'generic' ? 'Reset Bands' : 'Reset Scales'}
+</button>
         <button onClick={onCustomizeSignal} className="btn btn-generate">
           Customize Signal
         </button>

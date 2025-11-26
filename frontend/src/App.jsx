@@ -1,3 +1,4 @@
+// App.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import EqualizerPanel from './components/EqualizerPanel';
@@ -6,8 +7,15 @@ import Spectrogram from './components/Spectrogram';
 import AudioControls from './components/AudioControls';
 import FrequencyResponse from './components/FrequencyResponse';
 import VerticalSlider from './components/VerticalSlider';
-import useAnimalData from './hooks/useAnimalData';
-import { generateAnimalBands, handleAnimalSelection } from './utils/animalBandGenerator';
+import useModeData from './hooks/useModeData';
+import { 
+  generateAnimalBands, 
+  generateHumanBands, 
+  generateInstrumentBands,
+  handleAnimalSelection, 
+  handleHumanSelection, 
+  handleInstrumentSelection 
+} from './utils/bandGenerator';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -166,8 +174,13 @@ function App() {
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [currentMode, setCurrentMode] = useState('generic');
   const [selectedAnimals, setSelectedAnimals] = useState([]);
+  const [selectedHumans, setSelectedHumans] = useState([]);
+  const [selectedInstruments, setSelectedInstruments] = useState([]);
   
-  const { animalData, isLoading: isLoadingAnimalData } = useAnimalData();
+  // Use unified mode data hook
+  const { data: animalData, isLoading: isLoadingAnimalData } = useModeData('animals');
+  const { data: humanData, isLoading: isLoadingHumanData } = useModeData('humans');
+  const { data: instrumentData, isLoading: isLoadingInstrumentData } = useModeData('instruments');
   const debouncedFrequencyBands = useDebounce(frequencyBands, 300);
   
   // Add refs to track the original signal and previous values
@@ -214,13 +227,27 @@ function App() {
     }
   }, [debouncedFrequencyBands]);
 
-  // Update animal bands when selection changes
+  // Update bands when selection changes for each mode
   useEffect(() => {
     if (currentMode === 'animals' && selectedAnimals.length > 0) {
       const newBands = generateAnimalBands(selectedAnimals);
       setFrequencyBands(newBands);
     }
   }, [selectedAnimals, currentMode]);
+
+  useEffect(() => {
+    if (currentMode === 'humans' && selectedHumans.length > 0) {
+      const newBands = generateHumanBands(selectedHumans);
+      setFrequencyBands(newBands);
+    }
+  }, [selectedHumans, currentMode]);
+
+  useEffect(() => {
+    if (currentMode === 'instruments' && selectedInstruments.length > 0) {
+      const newBands = generateInstrumentBands(selectedInstruments);
+      setFrequencyBands(newBands);
+    }
+  }, [selectedInstruments, currentMode]);
 
   // Optimized: Update normalized spectrograms when raw spectrograms change
   useEffect(() => {
@@ -276,102 +303,162 @@ function App() {
     );
   };
 
-  const generateSyntheticSignal = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/synthetic-signal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frequencies: [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000],
-          duration: 3.0,
-          sample_rate: 44100
-        })
-      });
+  const handleHumanSelectionWrapper = (humanLabel) => {
+    setSelectedHumans(prev => 
+      handleHumanSelection(prev, humanLabel, humanData, 3)
+    );
+  };
+
+  const handleInstrumentSelectionWrapper = (instrumentLabel) => {
+    setSelectedInstruments(prev => 
+      handleInstrumentSelection(prev, instrumentLabel, instrumentData, 3)
+    );
+  };
+
+  // Also update the generateSyntheticSignal function to preserve current mode:
+const generateSyntheticSignal = async () => {
+  try {
+    const response = await fetch(`${API_BASE}/synthetic-signal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        frequencies: [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000],
+        duration: 3.0,
+        sample_rate: 44100
+      })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      setOriginalSignal(data.signal);
+      setProcessedSignal(data.signal);
+      setTimeAxis(data.time_axis);
+      setSampleRate(data.sample_rate);
+      setUploadedFileName('');
       
-      const data = await response.json();
-      if (data.success) {
-        setOriginalSignal(data.signal);
-        setProcessedSignal(data.signal);
-        setTimeAxis(data.time_axis);
-        setSampleRate(data.sample_rate);
-        setUploadedFileName('');
-        
-        // Reset frequency bands when new signal is generated
-        resetFrequencyBands();
-        updateSpectrograms(data.signal, data.signal);
-        updateFrequencyResponse();
-      }
-    } catch (error) {
-      console.error('Error generating signal:', error);
-    }
-  };
-
-  const generateCustomSignal = async (frequencies, duration) => {
-    try {
-      const response = await fetch(`${API_BASE}/synthetic-signal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frequencies: frequencies,
-          duration: duration,
-          sample_rate: 44100
-        })
-      });
+      // DON'T reset frequency bands when generating new signal - preserve current mode
+      // Only update spectrograms and frequency response
+      updateSpectrograms(data.signal, data.signal);
+      updateFrequencyResponse();
       
-      const data = await response.json();
-      if (data.success) {
-        setOriginalSignal(data.signal);
-        setProcessedSignal(data.signal);
-        setTimeAxis(data.time_axis);
-        setSampleRate(data.sample_rate);
-        setUploadedFileName('');
-        
-        // Reset frequency bands when new signal is generated
-        resetFrequencyBands();
-        updateSpectrograms(data.signal, data.signal);
-        updateFrequencyResponse();
+      // If we're in a specific mode, reprocess with current bands
+      if (currentMode !== 'generic' && frequencyBands.length > 0) {
+        processAudio();
       }
-    } catch (error) {
-      console.error('Error generating custom signal:', error);
     }
-  };
+  } catch (error) {
+    console.error('Error generating signal:', error);
+  }
+};
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!file.name.toLowerCase().endsWith('.wav')) {
-      alert('Please upload a WAV file');
-      return;
-    }
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch(`${API_BASE}/upload-audio`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setOriginalSignal(data.signal);
-        setProcessedSignal(data.signal);
-        setTimeAxis(data.time_axis);
-        setSampleRate(data.sample_rate);
-        setUploadedFileName(file.name);
-        
-        // Reset frequency bands when new file is uploaded
-        resetFrequencyBands();
-        updateSpectrograms(data.signal, data.signal);
-        updateFrequencyResponse();
+  // Update the generateCustomSignal function similarly:
+const generateCustomSignal = async (frequencies, duration) => {
+  try {
+    const response = await fetch(`${API_BASE}/synthetic-signal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        frequencies: frequencies,
+        duration: duration,
+        sample_rate: 44100
+      })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      setOriginalSignal(data.signal);
+      setProcessedSignal(data.signal);
+      setTimeAxis(data.time_axis);
+      setSampleRate(data.sample_rate);
+      setUploadedFileName('');
+      
+      // DON'T reset frequency bands when generating custom signal - preserve current mode
+      // Only update spectrograms and frequency response
+      updateSpectrograms(data.signal, data.signal);
+      updateFrequencyResponse();
+      
+      // If we're in a specific mode, reprocess with current bands
+      if (currentMode !== 'generic' && frequencyBands.length > 0) {
+        processAudio();
       }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      alert('Error uploading file. Please try again.');
     }
-  };
+  } catch (error) {
+    console.error('Error generating custom signal:', error);
+  }
+};
+
+// Add a new function to reset only when explicitly switching to generic mode
+const resetToGenericMode = () => {
+  resetFrequencyBands();
+  setSelectedAnimals([]);
+  setSelectedHumans([]);
+  setSelectedInstruments([]);
+};
+
+// Update the handleModeChange function to use the new reset function only for generic mode:
+const handleModeChange = (mode) => {
+  setCurrentMode(mode);
+  
+  if (mode === 'generic') {
+    // Only reset when explicitly switching TO generic mode
+    resetToGenericMode();
+  } else if (mode === 'animals' && animalData && animalData.modes.custom_generated.length > 0) {
+    // Select first 3 animals by default and generate bands
+    const initialAnimals = animalData.modes.custom_generated.slice(0, 3);
+    setSelectedAnimals(initialAnimals);
+    // Bands will be generated by the useEffect above
+  } else if (mode === 'humans' && humanData && humanData.modes.custom_generated.length > 0) {
+    // Select first 3 humans by default and generate bands
+    const initialHumans = humanData.modes.custom_generated.slice(0, 3);
+    setSelectedHumans(initialHumans);
+  } else if (mode === 'instruments' && instrumentData && instrumentData.modes.custom_generated.length > 0) {
+    // Select first 3 instruments by default and generate bands
+    const initialInstruments = instrumentData.modes.custom_generated.slice(0, 3);
+    setSelectedInstruments(initialInstruments);
+  }
+};
+
+const handleFileUpload = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (!file.name.toLowerCase().endsWith('.wav')) {
+    alert('Please upload a WAV file');
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE}/upload-audio`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      setOriginalSignal(data.signal);
+      setProcessedSignal(data.signal);
+      setTimeAxis(data.time_axis);
+      setSampleRate(data.sample_rate);
+      setUploadedFileName(file.name);
+      
+      // DON'T reset frequency bands when uploading file - preserve current mode
+      // Only update spectrograms and frequency response
+      updateSpectrograms(data.signal, data.signal);
+      updateFrequencyResponse();
+      
+      // If we're in a specific mode, reprocess with current bands
+      if (currentMode !== 'generic' && frequencyBands.length > 0) {
+        processAudio();
+      }
+    }
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    alert('Error uploading file. Please try again.');
+  }
+};
 
   const processAudio = async () => {
     if (!originalSignal.length) return;
@@ -565,9 +652,20 @@ function App() {
     }
   };
 
-  const resetEqualizer = () => {
+// Also update the resetEqualizer function to preserve mode-specific bands:
+const resetEqualizer = () => {
+  if (currentMode === 'generic') {
+    // For generic mode, reset to default bands
     resetFrequencyBands();
-  };
+  } else {
+    // For mode-specific bands, reset scales to 1.0 but keep the bands
+    const resetBands = frequencyBands.map(band => ({
+      ...band,
+      scale: 1.0
+    }));
+    setFrequencyBands(resetBands);
+  }
+};
 
   const updateBand = (index, field, value) => {
     const newBands = [...frequencyBands];
@@ -594,6 +692,20 @@ function App() {
           setSelectedAnimals(prev => prev.filter(a => a.label !== removedAnimal.label));
         }
       }
+      // If in human mode, update selected humans
+      else if (currentMode === 'humans') {
+        const removedHuman = frequencyBands[index].human;
+        if (removedHuman) {
+          setSelectedHumans(prev => prev.filter(h => h.label !== removedHuman.label));
+        }
+      }
+      // If in instrument mode, update selected instruments
+      else if (currentMode === 'instruments') {
+        const removedInstrument = frequencyBands[index].instrument;
+        if (removedInstrument) {
+          setSelectedInstruments(prev => prev.filter(i => i.label !== removedInstrument.label));
+        }
+      }
     }
   };
 
@@ -604,10 +716,10 @@ function App() {
       low_freq: parseFloat(lowFreq) || 20,
       high_freq: parseFloat(highFreq) || 20000,
       center_freq: Math.sqrt(lowFreq * highFreq),
-      label: currentMode === 'animals' ? newBands[index].label : 
+      label: currentMode === 'generic' ? 
              (highFreq < 1000 ? 
               `${Math.round(lowFreq)}-${Math.round(highFreq)}Hz` : 
-              `${Math.round(lowFreq/1000)}-${Math.round(highFreq/1000)}kHz`)
+              `${Math.round(lowFreq/1000)}-${Math.round(highFreq/1000)}kHz`) : newBands[index].label
     };
     setFrequencyBands(newBands);
   };
@@ -617,21 +729,6 @@ function App() {
       return `${(freq / 1000).toFixed(1)}k`;
     }
     return `${Math.round(freq)}`;
-  };
-
-  const handleModeChange = (mode) => {
-    setCurrentMode(mode);
-    
-    if (mode === 'generic') {
-      // Reset to generic bands
-      resetFrequencyBands();
-      setSelectedAnimals([]);
-    } else if (mode === 'animals' && animalData && animalData.modes.custom_generated.length > 0) {
-      // Select first 3 animals by default and generate bands
-      const initialAnimals = animalData.modes.custom_generated.slice(0, 3);
-      setSelectedAnimals(initialAnimals);
-      // Bands will be generated by the useEffect above
-    }
   };
 
   return (
@@ -686,11 +783,18 @@ function App() {
           <div className="vertical-sliders-container">
             <div className="sliders-header">
               <h4>
-                {currentMode === 'animals' ? 'Animal Frequency Range Controls' : 'Frequency Band Controls'}
+                {currentMode === 'animals' ? 'Animal Frequency Range Controls' : 
+                 currentMode === 'humans' ? 'Human Voice Frequency Controls' :
+                 currentMode === 'instruments' ? 'Instrument Frequency Controls' : 
+                 'Frequency Band Controls'}
               </h4>
               <p>
                 {currentMode === 'animals' 
                   ? 'Adjust amplitude scales for each animal frequency range' 
+                  : currentMode === 'humans'
+                  ? 'Adjust amplitude scales for each human voice frequency range'
+                  : currentMode === 'instruments'
+                  ? 'Adjust amplitude scales for each instrument frequency range'
                   : 'Adjust amplitude scales (0-2) for each frequency subdivision'}
               </p>
             </div>
@@ -805,6 +909,14 @@ function App() {
             isLoadingAnimalData={isLoadingAnimalData}
             selectedAnimals={selectedAnimals}
             onAnimalSelection={handleAnimalSelectionWrapper}
+            humanData={humanData}
+            isLoadingHumanData={isLoadingHumanData}
+            selectedHumans={selectedHumans}
+            onHumanSelection={handleHumanSelectionWrapper}
+            instrumentData={instrumentData}
+            isLoadingInstrumentData={isLoadingInstrumentData}
+            selectedInstruments={selectedInstruments}
+            onInstrumentSelection={handleInstrumentSelectionWrapper}
           />
           
           {/* Frequency Response */}
