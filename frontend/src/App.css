@@ -37,8 +37,8 @@ html, body {
 /* Control Section - Right side */
 .control-section {
   flex: 1;
-  min-width: 300px;
-  max-width: 320px;
+  min-width: 500px;
+  max-width: 520px;
   order: 2;
   display: flex;
   flex-direction: column;
@@ -53,7 +53,7 @@ html, body {
   flex-direction: column;
   gap: 6px;
   background: #2C3E50;
-  padding: 8px;
+  padding: 4px;
   border-radius: 6px;
   border: 1px solid #34495E;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -83,18 +83,18 @@ html, body {
 .signal-graphs-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  flex: 1;
+  gap: 4px;
+  flex: 0.85;
   min-height: 0;
-  margin-top: -4px;
+  margin-top: -2px;
 }
 
 .signal-graphs-row {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   justify-content: space-between;
   align-items: stretch;
-  flex: 1;
+  flex: 0.5;
   min-height: 0;
 }
 
@@ -107,13 +107,13 @@ html, body {
 /* Vertical Sliders Container */
 .vertical-sliders-container {
   background: #34495E;
-  padding: 10px;
+  padding: 4px;
   border-radius: 4px;
   border: 1px solid #4A6278;
   flex-shrink: 0;
   height: 200px;
   overflow: hidden;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .sliders-header {
@@ -123,8 +123,8 @@ html, body {
 
 .sliders-header h4 {
   margin: 0 0 3px 0;
-  color: #3498DB;
-  font-size: 0.9em;
+  color: #ffffff;
+  font-size: 1.3em;
 }
 
 .sliders-header p {
@@ -156,7 +156,7 @@ html, body {
   border: 1px solid #4A6278;
   min-width: 70px;
   flex-shrink: 0;
-  height: 130px;
+  height: 150px;
   justify-content: space-between;
 }
 

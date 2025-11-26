@@ -394,7 +394,6 @@ function App() {
           <div className="vertical-sliders-container">
             <div className="sliders-header">
               <h4>Frequency Band Controls</h4>
-              <p>Adjust amplitude scales (0-2) for each frequency subdivision</p>
             </div>
             
             <div className="vertical-sliders-horizontal">
