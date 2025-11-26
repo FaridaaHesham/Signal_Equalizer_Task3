@@ -2,24 +2,24 @@
     "modes": {
         "custom_generated": [
             {
-                "label": "Drumroll",
+                "label": "trumpet",
                 "color": "#a00f37",
                 "ranges": [
-                    [200, 400]
+                    [175, 2800]
                 ]
             },
             {
-                "label": "Flute",
+                "label": "guitar",
                 "color": "#d7ad3e",
                 "ranges": [
-                    [300, 2000]
+                    [90, 700]
                 ]
             },
             {
                 "label": "Piano",
                 "color": "#28b8d7",
                 "ranges": [
-                    [27.5, 4200]
+                    [20, 700]
                 ]
             }
         ]
