@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import EqualizerPanel from './components/EqualizerPanel';
 import SignalViewer from './components/SignalViewer';
@@ -6,6 +6,8 @@ import Spectrogram from './components/Spectrogram';
 import AudioControls from './components/AudioControls';
 import FrequencyResponse from './components/FrequencyResponse';
 import VerticalSlider from './components/VerticalSlider';
+import useAnimalData from './hooks/useAnimalData';
+import { generateAnimalBands, handleAnimalSelection } from './utils/animalBandGenerator';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -25,6 +27,123 @@ function useDebounce(value, delay) {
   return debouncedValue;
 }
 
+// Enhanced normalization with proper error handling
+const normalizeSpectrograms = (inputSpectrogram, outputSpectrogram) => {
+  // Check if spectrograms are valid 2D arrays
+  if (!inputSpectrogram || !outputSpectrogram || 
+      !Array.isArray(inputSpectrogram) || !Array.isArray(outputSpectrogram) ||
+      inputSpectrogram.length === 0 || outputSpectrogram.length === 0 ||
+      !Array.isArray(inputSpectrogram[0]) || !Array.isArray(outputSpectrogram[0])) {
+    console.error('Invalid spectrogram data:', {
+      input: inputSpectrogram,
+      output: outputSpectrogram
+    });
+    return { 
+      normalizedInput: null, 
+      normalizedOutput: null,
+      differenceSpectrogram: null 
+    };
+  }
+  
+  // Ensure both spectrograms have the same dimensions
+  const minRows = Math.min(inputSpectrogram.length, outputSpectrogram.length);
+  const minCols = Math.min(
+    inputSpectrogram[0]?.length || 0, 
+    outputSpectrogram[0]?.length || 0
+  );
+  
+  if (minRows === 0 || minCols === 0) {
+    console.error('Spectrograms have zero dimensions');
+    return { 
+      normalizedInput: null, 
+      normalizedOutput: null,
+      differenceSpectrogram: null 
+    };
+  }
+  
+  console.log(`Spectrogram dimensions: ${minRows}x${minCols}`);
+  
+  // Convert to dB scale first for better visualization
+  const toDB = (spectrogram) => {
+    return spectrogram.map(row => 
+      row.map(value => {
+        const db = 10 * Math.log10(Math.max(1e-10, value)); // Avoid log(0)
+        return Math.max(-100, Math.min(0, db)); // Clip to reasonable range
+      })
+    );
+  };
+  
+  const inputDB = toDB(inputSpectrogram);
+  const outputDB = toDB(outputSpectrogram);
+  
+  // Find global min and max across both spectrograms in dB
+  let globalMin = Infinity;
+  let globalMax = -Infinity;
+  
+  for (let i = 0; i < minRows; i++) {
+    for (let j = 0; j < minCols; j++) {
+      const inputVal = inputDB[i]?.[j];
+      const outputVal = outputDB[i]?.[j];
+      
+      if (inputVal != null && !isNaN(inputVal)) {
+        if (inputVal < globalMin) globalMin = inputVal;
+        if (inputVal > globalMax) globalMax = inputVal;
+      }
+      
+      if (outputVal != null && !isNaN(outputVal)) {
+        if (outputVal < globalMin) globalMin = outputVal;
+        if (outputVal > globalMax) globalMax = outputVal;
+      }
+    }
+  }
+  
+  // If all values are the same, use default range
+  if (globalMin === globalMax || !isFinite(globalMin) || !isFinite(globalMax)) {
+    globalMin = -80;
+    globalMax = 0;
+    console.log('Using default spectrogram range');
+  }
+  
+  console.log(`Global spectrogram range: ${globalMin.toFixed(2)} dB to ${globalMax.toFixed(2)} dB`);
+  
+  // Normalize dB values to [0,1]
+  const normalizeDB = (dbSpectrogram) => {
+    return dbSpectrogram.map(row => 
+      row.map(dbValue => {
+        // Convert from dB range to [0, 1]
+        return (dbValue - globalMin) / (globalMax - globalMin);
+      })
+    );
+  };
+  
+  const normalizedInput = normalizeDB(inputDB);
+  const normalizedOutput = normalizeDB(outputDB);
+  
+  // Calculate difference spectrogram
+  const differenceSpectrogram = [];
+  for (let i = 0; i < minRows; i++) {
+    const diffRow = [];
+    for (let j = 0; j < minCols; j++) {
+      const inputVal = inputSpectrogram[i]?.[j] || 1e-10;
+      const outputVal = outputSpectrogram[i]?.[j] || 1e-10;
+      
+      // Calculate ratio in dB (positive = boost, negative = cut)
+      const ratio = outputVal / Math.max(1e-10, inputVal);
+      const diffDB = 10 * Math.log10(Math.max(1e-3, Math.min(1e3, ratio))); // Limit range
+      // Normalize to [-1, 1] for visualization
+      const normalizedDiff = Math.max(-1, Math.min(1, diffDB / 12)); // More sensitive scaling
+      diffRow.push(normalizedDiff);
+    }
+    differenceSpectrogram.push(diffRow);
+  }
+  
+  return { 
+    normalizedInput, 
+    normalizedOutput, 
+    differenceSpectrogram 
+  };
+};
+
 function App() {
   const [originalSignal, setOriginalSignal] = useState([]);
   const [processedSignal, setProcessedSignal] = useState([]);
@@ -33,7 +152,11 @@ function App() {
   const [sampleRate, setSampleRate] = useState(44100);
   const [inputSpectrogram, setInputSpectrogram] = useState(null);
   const [outputSpectrogram, setOutputSpectrogram] = useState(null);
+  const [normalizedInputSpectrogram, setNormalizedInputSpectrogram] = useState(null);
+  const [normalizedOutputSpectrogram, setNormalizedOutputSpectrogram] = useState(null);
+  const [differenceSpectrogram, setDifferenceSpectrogram] = useState(null);
   const [showSpectrograms, setShowSpectrograms] = useState(false);
+  const [showDifference, setShowDifference] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [frequencyResponse, setFrequencyResponse] = useState(null);
   const [showSignalCustomizer, setShowSignalCustomizer] = useState(false);
@@ -41,10 +164,46 @@ function App() {
   const [signalDuration, setSignalDuration] = useState(3.0);
   const [isLoadingFrequencyResponse, setIsLoadingFrequencyResponse] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('');
+  const [currentMode, setCurrentMode] = useState('generic');
+  const [selectedAnimals, setSelectedAnimals] = useState([]);
   
+  const { animalData, isLoading: isLoadingAnimalData } = useAnimalData();
   const debouncedFrequencyBands = useDebounce(frequencyBands, 300);
+  
+  // Add refs to track the original signal and previous values
+  const originalSignalRef = useRef([]);
+  const prevNormalizedInputRef = useRef(null);
+  const prevNormalizedOutputRef = useRef(null);
+  const prevInputSpectrogramRef = useRef(null);
+  const prevOutputSpectrogramRef = useRef(null);
 
+  // Update the ref whenever originalSignal changes
   useEffect(() => {
+    originalSignalRef.current = originalSignal;
+  }, [originalSignal]);
+
+  // Default generic bands
+  const defaultGenericBands = [
+    { id: 1, low_freq: 20, high_freq: 60, scale: 1.0, label: '32Hz', center_freq: 32 },
+    { id: 2, low_freq: 60, high_freq: 90, scale: 1.0, label: '64Hz', center_freq: 64 },
+    { id: 3, low_freq: 90, high_freq: 175, scale: 1.0, label: '125Hz', center_freq: 125 },
+    { id: 4, low_freq: 175, high_freq: 350, scale: 1.0, label: '250Hz', center_freq: 250 },
+    { id: 5, low_freq: 350, high_freq: 700, scale: 1.0, label: '500Hz', center_freq: 500 },
+    { id: 6, low_freq: 700, high_freq: 1400, scale: 1.0, label: '1kHz', center_freq: 1000 },
+    { id: 7, low_freq: 1400, high_freq: 2800, scale: 1.0, label: '2kHz', center_freq: 2000 },
+    { id: 8, low_freq: 2800, high_freq: 5600, scale: 1.0, label: '4kHz', center_freq: 4000 },
+    { id: 9, low_freq: 5600, high_freq: 11200, scale: 1.0, label: '8kHz', center_freq: 8000 },
+    { id: 10, low_freq: 11200, high_freq: 20000, scale: 1.0, label: '16kHz', center_freq: 16000 }
+  ];
+
+  // Reset frequency bands to default
+  const resetFrequencyBands = () => {
+    setFrequencyBands(defaultGenericBands.map(band => ({ ...band, scale: 1.0 })));
+  };
+
+  // Initialize with generic bands
+  useEffect(() => {
+    resetFrequencyBands();
     generateSyntheticSignal();
   }, []);
 
@@ -54,6 +213,68 @@ function App() {
       updateFrequencyResponse();
     }
   }, [debouncedFrequencyBands]);
+
+  // Update animal bands when selection changes
+  useEffect(() => {
+    if (currentMode === 'animals' && selectedAnimals.length > 0) {
+      const newBands = generateAnimalBands(selectedAnimals);
+      setFrequencyBands(newBands);
+    }
+  }, [selectedAnimals, currentMode]);
+
+  // Optimized: Update normalized spectrograms when raw spectrograms change
+  useEffect(() => {
+    if (inputSpectrogram && outputSpectrogram && 
+        Array.isArray(inputSpectrogram) && Array.isArray(outputSpectrogram) &&
+        inputSpectrogram.length > 0 && outputSpectrogram.length > 0) {
+      
+      // Check if spectrograms actually changed
+      const inputChanged = inputSpectrogram !== prevInputSpectrogramRef.current;
+      const outputChanged = outputSpectrogram !== prevOutputSpectrogramRef.current;
+      
+      if (inputChanged || outputChanged) {
+        console.log('Spectrograms changed - normalizing:', { inputChanged, outputChanged });
+        
+        const { normalizedInput, normalizedOutput, differenceSpectrogram } = normalizeSpectrograms(inputSpectrogram, outputSpectrogram);
+        
+        // Only update normalized input if input spectrogram changed
+        if (inputChanged && normalizedInput !== prevNormalizedInputRef.current) {
+          setNormalizedInputSpectrogram(normalizedInput);
+          prevNormalizedInputRef.current = normalizedInput;
+        }
+        
+        // Only update normalized output if output spectrogram changed
+        if (outputChanged && normalizedOutput !== prevNormalizedOutputRef.current) {
+          setNormalizedOutputSpectrogram(normalizedOutput);
+          prevNormalizedOutputRef.current = normalizedOutput;
+        }
+        
+        setDifferenceSpectrogram(differenceSpectrogram);
+        
+        // Update previous references
+        prevInputSpectrogramRef.current = inputSpectrogram;
+        prevOutputSpectrogramRef.current = outputSpectrogram;
+      } else {
+        console.log('Spectrograms unchanged - skipping normalization');
+      }
+      
+    } else {
+      // Reset if spectrograms are invalid
+      setNormalizedInputSpectrogram(null);
+      setNormalizedOutputSpectrogram(null);
+      setDifferenceSpectrogram(null);
+      prevNormalizedInputRef.current = null;
+      prevNormalizedOutputRef.current = null;
+      prevInputSpectrogramRef.current = null;
+      prevOutputSpectrogramRef.current = null;
+    }
+  }, [inputSpectrogram, outputSpectrogram]);
+
+  const handleAnimalSelectionWrapper = (animalLabel) => {
+    setSelectedAnimals(prev => 
+      handleAnimalSelection(prev, animalLabel, animalData, 3)
+    );
+  };
 
   const generateSyntheticSignal = async () => {
     try {
@@ -75,20 +296,8 @@ function App() {
         setSampleRate(data.sample_rate);
         setUploadedFileName('');
         
-        const defaultBands = [
-          { id: 1, low_freq: 20, high_freq: 60, scale: 1.0, label: '32Hz', center_freq: 32 },
-          { id: 2, low_freq: 60, high_freq: 90, scale: 1.0, label: '64Hz', center_freq: 64 },
-          { id: 3, low_freq: 90, high_freq: 175, scale: 1.0, label: '125Hz', center_freq: 125 },
-          { id: 4, low_freq: 175, high_freq: 350, scale: 1.0, label: '250Hz', center_freq: 250 },
-          { id: 5, low_freq: 350, high_freq: 700, scale: 1.0, label: '500Hz', center_freq: 500 },
-          { id: 6, low_freq: 700, high_freq: 1400, scale: 1.0, label: '1kHz', center_freq: 1000 },
-          { id: 7, low_freq: 1400, high_freq: 2800, scale: 1.0, label: '2kHz', center_freq: 2000 },
-          { id: 8, low_freq: 2800, high_freq: 5600, scale: 1.0, label: '4kHz', center_freq: 4000 },
-          { id: 9, low_freq: 5600, high_freq: 11200, scale: 1.0, label: '8kHz', center_freq: 8000 },
-          { id: 10, low_freq: 11200, high_freq: 20000, scale: 1.0, label: '16kHz', center_freq: 16000 }
-        ];
-        setFrequencyBands(defaultBands);
-        
+        // Reset frequency bands when new signal is generated
+        resetFrequencyBands();
         updateSpectrograms(data.signal, data.signal);
         updateFrequencyResponse();
       }
@@ -116,6 +325,9 @@ function App() {
         setTimeAxis(data.time_axis);
         setSampleRate(data.sample_rate);
         setUploadedFileName('');
+        
+        // Reset frequency bands when new signal is generated
+        resetFrequencyBands();
         updateSpectrograms(data.signal, data.signal);
         updateFrequencyResponse();
       }
@@ -149,6 +361,9 @@ function App() {
         setTimeAxis(data.time_axis);
         setSampleRate(data.sample_rate);
         setUploadedFileName(file.name);
+        
+        // Reset frequency bands when new file is uploaded
+        resetFrequencyBands();
         updateSpectrograms(data.signal, data.signal);
         updateFrequencyResponse();
       }
@@ -175,7 +390,10 @@ function App() {
       
       const data = await response.json();
       if (data.success) {
+        console.log('Processing complete, setting processed signal:', data.processed_signal.length);
         setProcessedSignal(data.processed_signal);
+        
+        // Update spectrograms with ORIGINAL and PROCESSED signals
         updateSpectrograms(originalSignal, data.processed_signal);
       }
     } catch (error) {
@@ -185,31 +403,87 @@ function App() {
     }
   };
 
+  // Modified updateSpectrograms
   const updateSpectrograms = async (inputSignal, outputSignal) => {
     try {
-      const inputResponse = await fetch(`${API_BASE}/spectrogram`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signal: inputSignal, sample_rate: sampleRate })
-      });
+      console.log('Updating spectrograms - Input length:', inputSignal.length, 'Output length:', outputSignal.length);
       
-      const inputData = await inputResponse.json();
-      if (inputData.success) {
-        setInputSpectrogram(inputData.spectrogram);
+      // Ensure we have valid signals
+      if (!inputSignal.length || !outputSignal.length) {
+        console.error('Cannot update spectrograms: empty signals');
+        return;
       }
 
+      // Check if input signal is the same as our stored original
+      const isSameInput = inputSignal.length === originalSignalRef.current.length && 
+                         inputSignal[0] === originalSignalRef.current[0]; // Simple check
+      
+      console.log('Input signal unchanged:', isSameInput, 'Input length:', inputSignal.length, 'Stored length:', originalSignalRef.current.length);
+
+      if (!isSameInput) {
+        // Update input spectrogram only if input signal is different
+        const inputResponse = await fetch(`${API_BASE}/spectrogram`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            signal: inputSignal, 
+            sample_rate: sampleRate
+          })
+        });
+        
+        if (!inputResponse.ok) {
+          throw new Error(`HTTP error! status: ${inputResponse.status}`);
+        }
+        
+        const inputData = await inputResponse.json();
+        
+        if (inputData.success && inputData.spectrogram) {
+          console.log('Input spectrogram received:', {
+            rows: inputData.spectrogram.length,
+            cols: inputData.spectrogram[0]?.length || 0
+          });
+          setInputSpectrogram(inputData.spectrogram);
+        } else {
+          console.error('Input spectrogram error:', inputData.error || 'No spectrogram data');
+          setInputSpectrogram(null);
+        }
+      } else {
+        console.log('Skipping input spectrogram update - signal unchanged');
+      }
+
+      // Always update output spectrogram
       const outputResponse = await fetch(`${API_BASE}/spectrogram`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signal: outputSignal, sample_rate: sampleRate })
+        body: JSON.stringify({ 
+          signal: outputSignal, 
+          sample_rate: sampleRate
+        })
       });
       
+      if (!outputResponse.ok) {
+        throw new Error(`HTTP error! status: ${outputResponse.status}`);
+      }
+      
       const outputData = await outputResponse.json();
-      if (outputData.success) {
+      
+      if (outputData.success && outputData.spectrogram) {
+        console.log('Output spectrogram received:', {
+          rows: outputData.spectrogram.length,
+          cols: outputData.spectrogram[0]?.length || 0
+        });
         setOutputSpectrogram(outputData.spectrogram);
+      } else {
+        console.error('Output spectrogram error:', outputData.error || 'No spectrogram data');
+        setOutputSpectrogram(null);
       }
     } catch (error) {
       console.error('Error updating spectrograms:', error);
+      // Only reset if it's not a processing update (when input signal actually changed)
+      if (!originalSignalRef.current.length || inputSignal[0] !== originalSignalRef.current[0]) {
+        setInputSpectrogram(null);
+      }
+      setOutputSpectrogram(null);
     }
   };
 
@@ -292,11 +566,7 @@ function App() {
   };
 
   const resetEqualizer = () => {
-    const resetBands = frequencyBands.map(band => ({
-      ...band,
-      scale: 1.0
-    }));
-    setFrequencyBands(resetBands);
+    resetFrequencyBands();
   };
 
   const updateBand = (index, field, value) => {
@@ -316,6 +586,14 @@ function App() {
     if (frequencyBands.length > 1) {
       const newBands = frequencyBands.filter((_, i) => i !== index);
       setFrequencyBands(newBands);
+      
+      // If in animal mode, update selected animals
+      if (currentMode === 'animals') {
+        const removedAnimal = frequencyBands[index].animal;
+        if (removedAnimal) {
+          setSelectedAnimals(prev => prev.filter(a => a.label !== removedAnimal.label));
+        }
+      }
     }
   };
 
@@ -326,9 +604,10 @@ function App() {
       low_freq: parseFloat(lowFreq) || 20,
       high_freq: parseFloat(highFreq) || 20000,
       center_freq: Math.sqrt(lowFreq * highFreq),
-      label: highFreq < 1000 ? 
-        `${Math.round(lowFreq)}-${Math.round(highFreq)}Hz` : 
-        `${Math.round(lowFreq/1000)}-${Math.round(highFreq/1000)}kHz`
+      label: currentMode === 'animals' ? newBands[index].label : 
+             (highFreq < 1000 ? 
+              `${Math.round(lowFreq)}-${Math.round(highFreq)}Hz` : 
+              `${Math.round(lowFreq/1000)}-${Math.round(highFreq/1000)}kHz`)
     };
     setFrequencyBands(newBands);
   };
@@ -340,10 +619,23 @@ function App() {
     return `${Math.round(freq)}`;
   };
 
+  const handleModeChange = (mode) => {
+    setCurrentMode(mode);
+    
+    if (mode === 'generic') {
+      // Reset to generic bands
+      resetFrequencyBands();
+      setSelectedAnimals([]);
+    } else if (mode === 'animals' && animalData && animalData.modes.custom_generated.length > 0) {
+      // Select first 3 animals by default and generate bands
+      const initialAnimals = animalData.modes.custom_generated.slice(0, 3);
+      setSelectedAnimals(initialAnimals);
+      // Bands will be generated by the useEffect above
+    }
+  };
+
   return (
     <div className="App">
-      {/* Header removed completely */}
-
       <div className="main-container">
         {/* Visualization Section - Left side */}
         <div className="visualization-section">
@@ -393,7 +685,14 @@ function App() {
           {/* Horizontal Vertical Sliders Container */}
           <div className="vertical-sliders-container">
             <div className="sliders-header">
-              <h4>Frequency Band Controls</h4>
+              <h4>
+                {currentMode === 'animals' ? 'Animal Frequency Range Controls' : 'Frequency Band Controls'}
+              </h4>
+              <p>
+                {currentMode === 'animals' 
+                  ? 'Adjust amplitude scales for each animal frequency range' 
+                  : 'Adjust amplitude scales (0-2) for each frequency subdivision'}
+              </p>
             </div>
             
             <div className="vertical-sliders-horizontal">
@@ -403,46 +702,11 @@ function App() {
                     value={band.scale}
                     onChange={(value) => handleSliderChange(index, value)}
                     label={band.label}
-                    freqLabel={`${formatFrequency(band.low_freq)}-${formatFrequency(band.high_freq)}`}
+                    freqLabel={`${formatFrequency(band.low_freq)}-${formatFrequency(band.high_freq)}Hz`}
+                    color={band.color || '#3498DB'}
+                    onRemove={() => removeBand(index)}
+                    showRemove={currentMode === 'generic'}
                   />
-                  
-                  <div className="band-controls-vertical">
-                    <div className="range-controls-vertical">
-                      <div className="freq-input-group">
-                        <label>Low:</label>
-                        <input
-                          type="number"
-                          value={Math.round(band.low_freq)}
-                          onChange={(e) => updateBandRange(index, parseInt(e.target.value), band.high_freq)}
-                          className="freq-input"
-                          min="20"
-                          max="19900"
-                        />
-                        <span>Hz</span>
-                      </div>
-                      <div className="freq-input-group">
-                        <label>High:</label>
-                        <input
-                          type="number"
-                          value={Math.round(band.high_freq)}
-                          onChange={(e) => updateBandRange(index, band.low_freq, parseInt(e.target.value))}
-                          className="freq-input"
-                          min="21"
-                          max="20000"
-                        />
-                        <span>Hz</span>
-                      </div>
-                    </div>
-                    
-                    <button 
-                      onClick={() => removeBand(index)} 
-                      className="btn-remove"
-                      disabled={frequencyBands.length <= 1}
-                      title="Remove band"
-                    >
-                      ✕
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>
@@ -466,18 +730,58 @@ function App() {
             >
               {showSpectrograms ? 'Hide Spectrograms' : 'Show Spectrograms'}
             </button>
+            {showSpectrograms && (
+              <button 
+                onClick={() => setShowDifference(!showDifference)}
+                className="toggle-button"
+                style={{ marginLeft: '10px' }}
+              >
+                {showDifference ? 'Show Normal' : 'Show Difference'}
+              </button>
+            )}
           </div>
 
           {showSpectrograms && (
             <div className="spectrograms-horizontal">
-              <Spectrogram
-                title="Input Spectrogram"
-                spectrogramData={inputSpectrogram}
-              />
-              <Spectrogram
-                title="Output Spectrogram"
-                spectrogramData={outputSpectrogram}
-              />
+              {showDifference ? (
+                <>
+                  <Spectrogram
+                    title="Difference Spectrogram (Output - Input)"
+                    spectrogramData={differenceSpectrogram}
+                    sampleRate={sampleRate}
+                    signalLength={originalSignal.length}
+                  />
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px',
+                    color: '#BDC3C7',
+                    textAlign: 'center'
+                  }}>
+                    <h4>Difference Spectrogram</h4>
+                    <p>Red: Frequencies boosted by equalizer</p>
+                    <p>Blue: Frequencies cut by equalizer</p>
+                    <p>White: No change</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Spectrogram
+                    title="Input Spectrogram"
+                    spectrogramData={normalizedInputSpectrogram}
+                    sampleRate={sampleRate}
+                    signalLength={originalSignal.length}
+                  />
+                  <Spectrogram
+                    title="Output Spectrogram"
+                    spectrogramData={normalizedOutputSpectrogram}
+                    sampleRate={sampleRate}
+                    signalLength={processedSignal.length}
+                  />
+                </>
+              )}
             </div>
           )}
         </div>
@@ -495,6 +799,12 @@ function App() {
             frequencyResponse={frequencyResponse}
             onCustomizeSignal={() => setShowSignalCustomizer(true)}
             onFileUpload={handleFileUpload}
+            currentMode={currentMode}
+            onModeChange={handleModeChange}
+            animalData={animalData}
+            isLoadingAnimalData={isLoadingAnimalData}
+            selectedAnimals={selectedAnimals}
+            onAnimalSelection={handleAnimalSelectionWrapper}
           />
           
           {/* Frequency Response */}
@@ -583,10 +893,10 @@ function App() {
               <button onClick={() => {
                 generateCustomSignal(customFrequencies, signalDuration);
                 setShowSignalCustomizer(false);
-              }} className="btn btn-generate" style={{padding: '4px 8px', fontSize: '0.7em'}}>
+              }} className="btn btn-generate">
                 Generate Signal
               </button>
-              <button onClick={() => setShowSignalCustomizer(false)} className="btn btn-reset" style={{padding: '4px 8px', fontSize: '0.7em'}}>
+              <button onClick={() => setShowSignalCustomizer(false)} className="btn btn-reset">
                 Cancel
               </button>
             </div>

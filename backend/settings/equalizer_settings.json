@@ -33,14 +33,54 @@
       "center_freq": 250
     },
     {
-      "id": 1764005268882,
+      "id": 5,
       "low_freq": 350,
-      "high_freq": 525,
+      "high_freq": 700,
       "scale": 1,
-      "label": "350-525Hz",
-      "center_freq": 428.6607049870562
+      "label": "500Hz",
+      "center_freq": 500
+    },
+    {
+      "id": 6,
+      "low_freq": 700,
+      "high_freq": 1400,
+      "scale": 0,
+      "label": "1kHz",
+      "center_freq": 1000
+    },
+    {
+      "id": 7,
+      "low_freq": 1400,
+      "high_freq": 2800,
+      "scale": 1,
+      "label": "2kHz",
+      "center_freq": 2000
+    },
+    {
+      "id": 8,
+      "low_freq": 2800,
+      "high_freq": 5600,
+      "scale": 1,
+      "label": "4kHz",
+      "center_freq": 4000
+    },
+    {
+      "id": 9,
+      "low_freq": 5600,
+      "high_freq": 11200,
+      "scale": 1,
+      "label": "8kHz",
+      "center_freq": 8000
+    },
+    {
+      "id": 10,
+      "low_freq": 11200,
+      "high_freq": 20000,
+      "scale": 1,
+      "label": "16kHz",
+      "center_freq": 16000
     }
   ],
   "version": "1.0",
-  "created": "2025-11-24T17:32:50.572Z"
+  "created": "2025-11-24T19:13:48.827Z"
 }

@@ -5,30 +5,33 @@ class FFTProcessor:
     def __init__(self):
         self.nyquist_limit = 0
     
+    # =========================
+    # FFT / IFFT
+    # =========================
     def fft(self, x):
         """
-        Cooley-Tukey FFT algorithm implementation - OPTIMIZED
+        Cooley-Tukey FFT algorithm (optimized).
+        Pads signal to next power of 2 if needed.
         """
         n = len(x)
         if n <= 1:
             return x
         
-        # Check if n is power of 2, if not, zero-pad
+        # Zero-pad to next power of 2 if necessary
         if n & (n - 1) != 0:
-            # Find next power of 2
             next_power = 2 ** math.ceil(math.log2(n))
             x = np.pad(x, (0, next_power - n), 'constant')
             n = next_power
         
-        # ALWAYS use iterative for better performance
+        # Use iterative FFT
         return self.fft_iterative(x)
     
     def fft_iterative(self, x):
         """
-        Iterative FFT implementation - optimized
+        Iterative FFT implementation.
         """
         n = len(x)
-        x = x.astype(complex)  # Ensure complex type
+        x = x.astype(complex)
         
         # Bit-reversal permutation
         j = 0
@@ -41,11 +44,10 @@ class FFTProcessor:
             if i < j:
                 x[i], x[j] = x[j], x[i]
         
-        # Iterative FFT - optimized
+        # Iterative FFT computation
         length = 2
         while length <= n:
             half_len = length // 2
-            # Precompute factors for better performance
             factors = np.exp(-2j * np.pi * np.arange(half_len) / length)
             for i in range(0, n, length):
                 for j in range(half_len):
@@ -60,102 +62,98 @@ class FFTProcessor:
     
     def ifft(self, X):
         """
-        Inverse FFT implementation - FIXED
+        Compute inverse FFT.
         """
         n = len(X)
-        
-        # Proper IFFT: conjugate, apply FFT, conjugate and scale
         x_conj = np.conjugate(X)
         x_fft = self.fft(x_conj)
         x = np.conjugate(x_fft) / n
-        
         return np.real(x)
     
-    def compute_fft_spectrum(self, signal, sample_rate):
+    # =========================
+    # FFT Spectrum
+    # =========================
+    def compute_fft_spectrum(self, signal, sample_rate, target_length=1024):
         """
-        Compute FFT spectrum optimized for visualization - SUPER FAST
+        Compute FFT magnitude spectrum for visualization.
+        Returns positive frequencies only.
         """
         try:
-            # MAJOR OPTIMIZATION: Use much smaller FFT for visualization
-            target_length = 1024  # Perfect for visualization
+            signal = np.array(signal, dtype=float)
             
+            # Downsample signal if too long for visualization
             if len(signal) > target_length:
-                # Efficient downsampling - take every Nth sample
                 step = max(1, len(signal) // target_length)
                 signal = signal[::step]
             
-            # Ensure signal is not empty
             if len(signal) == 0:
                 return {'magnitude': [], 'frequencies': []}
             
-            # Use our custom FFT
             fft_result = self.fft(signal)
             n = len(fft_result)
             
-            # Calculate magnitude and frequencies
             magnitude = np.abs(fft_result[:n//2]) / n
             frequencies = np.fft.fftfreq(n, 1/sample_rate)[:n//2]
             
-            # Ensure no NaN/inf values
-            magnitude = np.nan_to_num(magnitude, nan=0.0, posinf=0.0, neginf=0.0)
-            frequencies = np.nan_to_num(frequencies, nan=0.0, posinf=0.0, neginf=0.0)
-            
-            # Filter out negative frequencies
+            # Keep only positive frequencies
             valid_indices = frequencies > 0
-            magnitude = magnitude[valid_indices]
-            frequencies = frequencies[valid_indices]
+            magnitude = np.nan_to_num(magnitude[valid_indices], nan=0.0)
+            frequencies = np.nan_to_num(frequencies[valid_indices], nan=0.0)
             
-            return {
-                'magnitude': magnitude.tolist(),
-                'frequencies': frequencies.tolist()
-            }
+            return {'magnitude': magnitude.tolist(), 'frequencies': frequencies.tolist()}
+        
         except Exception as e:
             print(f"Error in compute_fft_spectrum: {e}")
-            return {
-                'magnitude': [],
-                'frequencies': []
-            }
+            import traceback
+            traceback.print_exc()
+            return {'magnitude': [], 'frequencies': []}
     
-    def compute_spectrogram(self, signal, sample_rate, window_size=512, hop_size=128):  # Smaller windows for speed
+    # =========================
+    # Spectrogram
+    # =========================
+    def compute_spectrogram(self, signal, sample_rate, n_fft=1024, hop_length=None):
         """
-        Compute spectrogram using STFT with our custom FFT - OPTIMIZED
+        Compute magnitude spectrogram (time x frequency bins) of a signal.
+        Returns a 2D list (frames x frequency bins).
         """
-        n = len(signal)
-        
-        # Use smaller windows for better performance
-        if n < window_size:
-            signal = np.pad(signal, (0, window_size - n), 'constant')
-            n = window_size
-        
-        # Calculate number of windows
-        num_windows = 1 + (n - window_size) // hop_size
-        
-        # Initialize spectrogram matrix
-        spectrogram = []
-        
-        for i in range(num_windows):
-            start = i * hop_size
-            end = start + window_size
-            
-            if end > n:
-                break
-                
-            # Extract window and apply Hamming window
-            window = signal[start:end]
-            window = window * np.hamming(len(window))
-            
-            # Compute FFT using our custom implementation
-            fft_result = self.fft(window)
-            magnitude = np.abs(fft_result[:window_size // 2])
-            
-            spectrogram.append(magnitude)
-        
-        # Convert to numpy array and transpose (time vs frequency)
-        return np.array(spectrogram).T
+        try:
+            signal = np.array(signal, dtype=float)
+            hop_length = hop_length or n_fft // 2  # 50% overlap
+
+            # Pad signal to fit last frame
+            pad_width = (n_fft - len(signal) % hop_length) % hop_length
+            signal = np.pad(signal, (0, pad_width), mode='constant')
+
+            frames = []
+            for start in range(0, len(signal) - n_fft + 1, hop_length):
+                frame = signal[start:start+n_fft] * np.hanning(n_fft)
+                fft_frame = np.fft.fft(frame)[:n_fft//2]
+                magnitude = np.abs(fft_frame)
+                frames.append(magnitude.tolist())
+
+            return frames
+        except Exception as e:
+            print(f"Error in compute_spectrogram: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
     
+    def normalize_spectrogram(self, spectrogram):
+        """
+        Normalize spectrogram to [0,1] for visualization.
+        """
+        spec = np.array(spectrogram)
+        spec -= spec.min()
+        if spec.max() > 0:
+            spec /= spec.max()
+        return spec.tolist()
+    
+    # =========================
+    # Frequency bins
+    # =========================
     def get_frequency_bins(self, signal_length, sample_rate):
         """
-        Get frequency bins for FFT results
+        Return positive frequency bins for a given signal length and sample rate.
         """
         freqs = np.fft.fftfreq(signal_length, 1/sample_rate)
-        return freqs[:signal_length//2]  # Return only positive frequencies
+        return np.array([f for f in freqs if f >= 0])

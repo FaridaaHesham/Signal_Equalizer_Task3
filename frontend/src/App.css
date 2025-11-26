@@ -44,6 +44,7 @@ html, body {
   flex-direction: column;
   gap: 8px;
   height: 100%;
+  overflow-y: auto; /* Enable scrolling */
 }
 
 /* Visualization Section - Left side */
@@ -59,22 +60,22 @@ html, body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   order: 1;
   height: 100%;
-  overflow: hidden;
+  overflow-y: auto; /* Enable scrolling */
 }
 
 /* Controls Container Elements */
 .controls-frequency-response {
   background: #34495E;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 12px;
+  border-radius: 6px;
   border: 1px solid #4A6278;
   flex-shrink: 0;
 }
 
 .controls-audio-playback {
   background: #34495E;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 12px;
+  border-radius: 6px;
   border: 1px solid #4A6278;
   flex-shrink: 0;
 }
@@ -107,13 +108,13 @@ html, body {
 /* Vertical Sliders Container */
 .vertical-sliders-container {
   background: #34495E;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 8px;
+  border-radius: 6px;
   border: 1px solid #4A6278;
   flex-shrink: 0;
-  height: 200px;
+  height: 220px;
   overflow: hidden;
-  margin-top: 1px;
+  margin-top: 4px;
 }
 
 .sliders-header {
@@ -122,25 +123,26 @@ html, body {
 }
 
 .sliders-header h4 {
-  margin: 0 0 3px 0;
+  margin: 0 0 4px 0;
   color: #ffffff;
-  font-size: 1.3em;
+  font-size: 1.1em;
 }
 
 .sliders-header p {
   margin: 0;
   color: #BDC3C7;
-  font-size: 0.7em;
+  font-size: 0.8em;
+  line-height: 1.3;
 }
 
 .vertical-sliders-horizontal {
   display: flex;
   justify-content: center;
-  gap: 6px;
-  margin: 5px 0;
+  gap: 8px;
+  margin: 8px 0;
   flex-wrap: nowrap;
   overflow: hidden;
-  padding: 2px 0;
+  padding: 4px;
   height: 140px;
   align-items: flex-end;
 }
@@ -149,148 +151,87 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 5px;
+  gap: 4px;
+  padding: 6px;
   background: #2C3E50;
   border-radius: 4px;
   border: 1px solid #4A6278;
-  min-width: 70px;
+  min-width: 60px;
   flex-shrink: 0;
-  height: 150px;
+  height: 160px;
   justify-content: space-between;
-}
-
-.band-controls-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: center;
-  width: 100%;
-}
-
-.range-controls-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 100%;
-}
-
-.freq-input-group {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  justify-content: space-between;
-}
-
-.freq-input-group label {
-  font-size: 0.5em;
-  color: #BDC3C7;
-  min-width: 18px;
-}
-
-.freq-input {
-  width: 32px;
-  padding: 1px;
-  border: 1px solid #4A6278;
-  border-radius: 2px;
-  background: #34495E;
-  color: white;
-  font-size: 0.5em;
-  text-align: center;
-}
-
-.freq-input:focus {
-  outline: none;
-  border-color: #3498DB;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .sliders-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 6px;
-  padding-top: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid #4A6278;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 8px;
 }
 
 .db-scale {
   display: flex;
-  gap: 20px;
-  font-size: 0.6em;
+  gap: 15px;
+  font-size: 0.8em;
   color: #BDC3C7;
   font-weight: 500;
 }
 
 .scale-info {
-  font-size: 0.6em;
+  font-size: 0.8em;
   color: #95A5A6;
   font-style: italic;
-}
-
-.btn-remove {
-  background: #E74C3C;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.6em;
-  font-weight: bold;
-  transition: all 0.2s ease;
-}
-
-.btn-remove:hover:not(:disabled) {
-  background: #C0392B;
-  transform: scale(1.1);
-}
-
-.btn-remove:disabled {
-  background: #7F8C8D;
-  cursor: not-allowed;
 }
 
 /* Horizontal Spectrograms */
 .spectrograms-horizontal {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   justify-content: space-between;
   flex-wrap: wrap;
   flex-shrink: 0;
-  height: 150px;
+  min-height: 450px;
+  padding: 8px;
+  overflow-y: auto; /* Enable scrolling for spectrograms */
 }
 
 .spectrograms-horizontal > * {
   flex: 1;
   min-width: 0;
+  min-height: 400px;
 }
 
 .spectrogram-controls {
   text-align: center;
   flex-shrink: 0;
-  height: 26px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
 }
 
 .toggle-button {
-  padding: 3px 6px;
+  padding: 8px 16px;
   background: linear-gradient(135deg, #3498db, #2980b9);
   color: white;
   border: none;
-  border-radius: 2px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 0.55em;
+  font-size: 0.9em;
   font-weight: 600;
   transition: all 0.3s ease;
+  min-width: 120px;
 }
 
 .toggle-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(52, 152, 219, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.4);
 }
 
 /* Modal Styles */
@@ -309,65 +250,111 @@ html, body {
 
 .modal-content {
   background: #2C3E50;
-  padding: 15px;
-  border-radius: 6px;
+  padding: 20px;
+  border-radius: 8px;
   border: 1px solid #34495E;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
-  max-width: 400px;
+  max-width: 450px;
   width: 90%;
   max-height: 70vh;
   overflow-y: auto;
 }
 
 .modal-content h3 {
-  margin: 0 0 10px 0;
+  margin: 0 0 15px 0;
   color: #3498DB;
   text-align: center;
-  font-size: 1em;
+  font-size: 1.2em;
 }
 
 .frequency-sliders, .duration-input {
-  margin-bottom: 10px;
+  margin-bottom: 15px;
 }
 
 .frequency-sliders label, .duration-input label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   color: #BDC3C7;
   font-weight: 500;
-  font-size: 0.8em;
+  font-size: 0.9em;
 }
 
 .frequency-sliders input, .duration-input input {
   width: 100%;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .modal-buttons {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 15px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.btn-generate {
+  background: linear-gradient(135deg, #27ae60, #229954);
+  color: white;
+}
+
+.btn-reset {
+  background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+  color: white;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Scrollbar Styling */
+.visualization-section::-webkit-scrollbar,
+.control-section::-webkit-scrollbar,
+.spectrograms-horizontal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.visualization-section::-webkit-scrollbar-thumb,
+.control-section::-webkit-scrollbar-thumb,
+.spectrograms-horizontal::-webkit-scrollbar-thumb {
+  background: #3498db;
+  border-radius: 4px;
+}
+
+.visualization-section::-webkit-scrollbar-track,
+.control-section::-webkit-scrollbar-track,
+.spectrograms-horizontal::-webkit-scrollbar-track {
+  background: #1a252f;
 }
 
 /* Responsive Design - Only for very small screens */
 @media (max-width: 1024px) {
   .main-container {
     flex-direction: column;
-    padding: 5px;
+    padding: 8px;
   }
   
   .control-section {
     max-width: 100%;
     order: 1;
     height: auto;
-    min-height: 200px;
+    min-height: 300px;
   }
   
   .visualization-section {
     order: 2;
     height: auto;
-    min-height: 400px;
+    min-height: 500px;
   }
   
   .signal-graphs-row > * {
@@ -378,5 +365,10 @@ html, body {
     flex-wrap: wrap;
     justify-content: center;
     height: auto;
+  }
+
+  .spectrograms-horizontal {
+    flex-direction: column;
+    min-height: auto;
   }
 }
