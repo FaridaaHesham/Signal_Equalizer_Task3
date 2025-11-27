@@ -1,13 +1,15 @@
 # equalizer.py
 import numpy as np
+from app.services.dsp.fft_processor import FFTProcessor  # Import your FFT processor
 
 class Equalizer:
     def __init__(self):
         self.sample_rate = 44100
+        self.fft_processor = FFTProcessor()  # Initialize your FFT processor
     
     def apply_equalizer(self, signal, frequency_bands, sample_rate=44100):
         """
-        Apply equalizer with proper signal preservation
+        Apply equalizer with proper signal preservation using custom FFT
         """
         try:
             # Always work with the original signal, don't accumulate processing
@@ -24,10 +26,14 @@ class Equalizer:
             else:
                 windowed_signal = signal.copy()
             
-            # Compute FFT using numpy
-            freq_domain = np.fft.fft(windowed_signal)
+            # Compute FFT using YOUR CUSTOM IMPLEMENTATION
+            freq_domain = self.fft_processor.fft(windowed_signal)
             n = len(freq_domain)
-            freqs = np.fft.fftfreq(n, 1/sample_rate)
+            
+            # Create frequency array manually (since we're not using np.fft.fftfreq)
+            freqs = np.array([(k * sample_rate) / n for k in range(n)])
+            # Shift frequencies to match np.fft.fftfreq format (negative then positive)
+            freqs = np.where(freqs > sample_rate/2, freqs - sample_rate, freqs)
             
             # Create output frequency domain
             output_freq = freq_domain.copy()
@@ -58,8 +64,8 @@ class Equalizer:
             
             # Only do IFFT if bands were actually applied
             if bands_applied > 0:
-                processed_signal = np.fft.ifft(output_freq)
-                processed_signal = np.real(processed_signal)
+                # Use your custom IFFT implementation
+                processed_signal = self.fft_processor.ifft(output_freq)
             else:
                 processed_signal = signal.copy()  # Return original if no changes
             
