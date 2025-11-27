@@ -183,7 +183,7 @@ function App() {
   const [selectedAnimals, setSelectedAnimals] = useState([]);
   const [selectedHumans, setSelectedHumans] = useState([]);
   const [selectedInstruments, setSelectedInstruments] = useState([]);
-  // const [isUploading, setIsUploading] = useState(false); // NEW: Upload loading state
+  const [isUploading, setIsUploading] = useState(false); // NEW: Upload loading state
 
   
   // Use unified mode data hook
