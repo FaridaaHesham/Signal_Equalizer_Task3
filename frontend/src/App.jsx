@@ -233,7 +233,7 @@ function App() {
 
   useEffect(() => {
     if (originalSignal.length && debouncedFrequencyBands.length) {
-      processAudio();
+      processAudioLocal();
       updateFrequencyResponse();
     }
   }, [debouncedFrequencyBands]);
@@ -365,7 +365,7 @@ function App() {
         
         // If we're in a specific mode, reprocess with current bands
         if (currentMode !== 'generic' && frequencyBands.length > 0) {
-          processAudio();
+          processAudioLocal();
         }
       }
     } catch (error) {
@@ -431,7 +431,7 @@ function App() {
         
         // If we're in a specific mode, reprocess with current bands
         if (currentMode !== 'generic' && frequencyBands.length > 0) {
-          processAudio();
+          processAudioLocal();
         }
       }
     } catch (error) {
@@ -443,36 +443,29 @@ function App() {
   };
 
  // Update processAudio to handle completion
-const processAudio = async () => {
+const processAudioLocal = async () => {  // Renamed from processAudio
   if (!originalSignal.length) return;
   
   setIsProcessing(true);
   try {
     console.log('Processing audio with original signal length:', originalSignal.length);
-    const response = await fetch(`${API_BASE}/api/process`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        signal: originalSignal, // Always use ORIGINAL signal, not processedSignal
-        frequency_bands: frequencyBands,
-        sample_rate: sampleRate
-      })
-    });
     
-    const data = await response.json();
+    const data = await processAudio(originalSignal, frequencyBands, sampleRate); // This uses the imported function
+    
     if (data.success) {
       console.log('Processing complete, setting processed signal:', data.processed_signal.length);
       console.log('Signal stats:', data.signal_stats);
+      
       setProcessedSignal(data.processed_signal);
       
       // Update spectrograms with ORIGINAL and PROCESSED signals
       updateSpectrograms(originalSignal, data.processed_signal);
     }
-      } catch (error) {
+  } catch (error) {
     console.error('Error processing audio:', error);
   } finally {
     setIsProcessing(false);
-  }
+  }
 };
 
   const handleSeparatedSignals = async (signalData) => {
@@ -592,7 +585,7 @@ const processAudio = async () => {
     }
   };
 
-  const saveSettings = async () => {
+  const saveSettingsLocal = async () => {
     try {
       const data = await saveSettings({
         frequency_bands: frequencyBands,
@@ -864,7 +857,7 @@ const processAudio = async () => {
           <EqualizerPanel
             frequencyBands={frequencyBands}
             onBandsChange={setFrequencyBands}
-            onSave={saveSettings}
+            onSave={saveSettingsLocal}
             onReset={resetEqualizer}
             isProcessing={isProcessing}
             frequencyResponse={frequencyResponse}
