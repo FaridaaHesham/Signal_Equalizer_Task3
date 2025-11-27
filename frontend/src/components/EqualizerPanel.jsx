@@ -8,7 +8,6 @@ const EqualizerPanel = ({
   onSave, 
   onReset,
   isProcessing,
-  frequencyResponse,
   onCustomizeSignal,
   onFileUpload,
   currentMode,
@@ -24,7 +23,9 @@ const EqualizerPanel = ({
   instrumentData,
   isLoadingInstrumentData,
   selectedInstruments,
-  onInstrumentSelection
+  onInstrumentSelection,
+  isUploading, // NEW: Upload state
+  uploadedFileName // NEW: File name
 }) => {
 
   const addBand = () => {
@@ -108,33 +109,51 @@ const EqualizerPanel = ({
         </div>
       </div>
       
+      {/* NEW: Upload Status Display */}
+      {isUploading && (
+        <div className="upload-status-panel">
+          <div className="upload-loading-panel">
+            <span>Uploading file...</span>
+            <div className="loading-spinner-small"></div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Uploaded File Name Display */}
+      {uploadedFileName && !isUploading && (
+        <div className="uploaded-file-info">
+          <span className="file-name">File: {uploadedFileName}</span>
+        </div>
+      )}
+      
       {/* Mode Selection */}
       <div className="mode-selection">
         <div className="mode-buttons">
           <button 
             className={`mode-btn ${currentMode === 'generic' ? 'active' : ''}`}
             onClick={() => onModeChange('generic')}
+            disabled={isUploading || isProcessing}
           >
             Generic
           </button>
           <button 
             className={`mode-btn ${currentMode === 'animals' ? 'active' : ''}`}
             onClick={() => onModeChange('animals')}
-            disabled={isLoadingAnimalData || !animalData}
+            disabled={isLoadingAnimalData || !animalData || isUploading || isProcessing}
           >
             {isLoadingAnimalData ? 'Loading...' : 'Animals'}
           </button>
           <button 
             className={`mode-btn ${currentMode === 'humans' ? 'active' : ''}`}
             onClick={() => onModeChange('humans')}
-            disabled={isLoadingHumanData || !humanData}
+            disabled={isLoadingHumanData || !humanData || isUploading || isProcessing}
           >
             {isLoadingHumanData ? 'Loading...' : 'Humans'}
           </button>
           <button 
             className={`mode-btn ${currentMode === 'instruments' ? 'active' : ''}`}
             onClick={() => onModeChange('instruments')}
-            disabled={isLoadingInstrumentData || !instrumentData}
+            disabled={isLoadingInstrumentData || !instrumentData || isUploading || isProcessing}
           >
             {isLoadingInstrumentData ? 'Loading...' : 'Instruments'}
           </button>
@@ -148,33 +167,36 @@ const EqualizerPanel = ({
 
       <div className="control-buttons">
         {currentMode === 'generic' && (
-          <button onClick={addBand} className="btn btn-add">
+          <button onClick={addBand} className="btn btn-add" disabled={isUploading || isProcessing}>
             + Add Band
           </button>
         )}
-        <button onClick={onReset} className="btn btn-reset">
+        <button onClick={onReset} className="btn btn-reset" disabled={isUploading || isProcessing}>
           {currentMode === 'generic' ? 'Reset Bands' : 'Reset Scales'}
         </button>
-        <button onClick={onCustomizeSignal} className="btn btn-generate">
+        <button onClick={onCustomizeSignal} className="btn btn-generate" disabled={isUploading || isProcessing}>
           Customize Signal
         </button>
         
         {/* File Upload Button */}
-        <label className="btn btn-upload" style={{ 
-          background: 'linear-gradient(135deg, #27AE60, #2ECC71)',
+        <label className={`btn btn-upload ${isUploading ? 'uploading' : ''}`} style={{ 
+          background: isUploading 
+            ? 'linear-gradient(135deg, #7F8C8D, #95A5A6)' 
+            : 'linear-gradient(135deg, #27AE60, #2ECC71)',
           color: 'white',
-          cursor: 'pointer'
+          cursor: isUploading ? 'not-allowed' : 'pointer'
         }}>
-          Upload WAV
+          {isUploading ? 'Uploading...' : 'Upload WAV'}
           <input
             type="file"
             accept=".wav"
             onChange={handleFileUpload}
             style={{ display: 'none' }}
+            disabled={isUploading || isProcessing}
           />
         </label>
         
-        <button onClick={onSave} className="btn btn-save">
+        <button onClick={onSave} className="btn btn-save" disabled={isUploading || isProcessing}>
           Save
         </button>
       </div>
