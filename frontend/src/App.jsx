@@ -16,8 +16,15 @@ import {
   handleHumanSelection, 
   handleInstrumentSelection 
 } from './utils/bandGenerator';
+import {
+  generateSyntheticSignal,
+  uploadAudioFile,
+  processAudio,
+  getSpectrogram,
+  getFrequencyResponse,
+  saveSettings
+} from './services/api';
 
-const API_BASE = 'http://localhost:5000/api';
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -176,12 +183,14 @@ function App() {
   const [selectedAnimals, setSelectedAnimals] = useState([]);
   const [selectedHumans, setSelectedHumans] = useState([]);
   const [selectedInstruments, setSelectedInstruments] = useState([]);
+  // const [isUploading, setIsUploading] = useState(false); // NEW: Upload loading state
+
   
   // Use unified mode data hook
   const { data: animalData, isLoading: isLoadingAnimalData } = useModeData('animals');
   const { data: humanData, isLoading: isLoadingHumanData } = useModeData('humans');
   const { data: instrumentData, isLoading: isLoadingInstrumentData } = useModeData('instruments');
-  const debouncedFrequencyBands = useDebounce(frequencyBands, 300);
+  const debouncedFrequencyBands = useDebounce(frequencyBands, 500);
   
   // Add refs to track the original signal and previous values
   const originalSignalRef = useRef([]);
@@ -318,17 +327,8 @@ function App() {
   // Generate initial signal function
   const generateInitialSignal = async () => {
     try {
-      const response = await fetch(`${API_BASE}/synthetic-signal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frequencies: [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000],
-          duration: 3.0,
-          sample_rate: 44100
-        })
-      });
+      const data = await generateSyntheticSignal([32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000], 3.0, 44100);
       
-      const data = await response.json();
       if (data.success) {
         setOriginalSignal(data.signal);
         setProcessedSignal(data.signal);
@@ -348,17 +348,8 @@ function App() {
   // Generate custom signal function
   const generateCustomSignal = async (frequencies, duration) => {
     try {
-      const response = await fetch(`${API_BASE}/synthetic-signal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frequencies: frequencies,
-          duration: duration,
-          sample_rate: 44100
-        })
-      });
+      const data = await generateSyntheticSignal(frequencies, duration, 44100);
       
-      const data = await response.json();
       if (data.success) {
         setOriginalSignal(data.signal);
         setProcessedSignal(data.signal);
@@ -411,6 +402,7 @@ function App() {
     }
   };
 
+  // NEW: Enhanced file upload with loading state
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -420,16 +412,10 @@ function App() {
       return;
     }
 
+    setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const data = await uploadAudioFile(file);
 
-      const response = await fetch(`${API_BASE}/upload-audio`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
       if (data.success) {
         setOriginalSignal(data.signal);
         setProcessedSignal(data.signal);
@@ -449,57 +435,36 @@ function App() {
     } catch (error) {
       console.error('Error uploading file:', error);
       alert('Error uploading file. Please try again.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
- // In App.jsx - update the processAudio function
-const processAudio = async () => {
-  if (!originalSignal.length) return;
-  
-  setIsProcessing(true);
-  try {
-    console.log('Processing audio with original signal length:', originalSignal.length);
+ // Update processAudio to handle completion
+  const processAudio = async () => {
+    if (!originalSignal.length) return;
     
-    const response = await fetch(`${API_BASE}/process`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        signal: originalSignal, // Always use ORIGINAL signal, not processedSignal
-        frequency_bands: frequencyBands,
-        sample_rate: sampleRate
-      })
-    });
-    
-    const data = await response.json();
-    if (data.success) {
-      console.log('Processing complete, setting processed signal:', data.processed_signal.length);
-      console.log('Signal stats:', data.signal_stats);
+    setIsProcessing(true);
+    try {
+      console.log('Processing audio with original signal length:', originalSignal.length);
       
-      setProcessedSignal(data.processed_signal);
+      const data = await processAudio(originalSignal, frequencyBands, sampleRate);
       
-      // Update spectrograms with ORIGINAL and PROCESSED signals
-      updateSpectrograms(originalSignal, data.processed_signal);
+      if (data.success) {
+        console.log('Processing complete, setting processed signal:', data.processed_signal.length);
+        console.log('Signal stats:', data.signal_stats);
+        
+        setProcessedSignal(data.processed_signal);
+        
+        // Update spectrograms with ORIGINAL and PROCESSED signals
+        updateSpectrograms(originalSignal, data.processed_signal);
+      }
+    } catch (error) {
+      console.error('Error processing audio:', error);
+    } finally {
+      setIsProcessing(false);
     }
-  } catch (error) {
-    console.error('Error processing audio:', error);
-  } finally {
-    setIsProcessing(false);
-  }
-};
-
-// Also add a debug function to check signal health
-const checkSignalHealth = (signal, name) => {
-  if (!signal || signal.length === 0) {
-    console.log(`${name}: Empty signal`);
-    return;
-  }
-  
-  const max = Math.max(...signal);
-  const min = Math.min(...signal);
-  const rms = Math.sqrt(signal.reduce((sum, val) => sum + val * val, 0) / signal.length);
-  
-  console.log(`${name} Health - Max: ${max.toFixed(6)}, Min: ${min.toFixed(6)}, RMS: ${rms.toFixed(6)}`);
-};
+  };
 
   // Modified updateSpectrograms
   const updateSpectrograms = async (inputSignal, outputSignal) => {
@@ -520,20 +485,7 @@ const checkSignalHealth = (signal, name) => {
 
       if (!isSameInput) {
         // Update input spectrogram only if input signal is different
-        const inputResponse = await fetch(`${API_BASE}/spectrogram`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            signal: inputSignal, 
-            sample_rate: sampleRate
-          })
-        });
-        
-        if (!inputResponse.ok) {
-          throw new Error(`HTTP error! status: ${inputResponse.status}`);
-        }
-        
-        const inputData = await inputResponse.json();
+        const inputData = await getSpectrogram(inputSignal, sampleRate);
         
         if (inputData.success && inputData.spectrogram) {
           console.log('Input spectrogram received:', {
@@ -550,20 +502,7 @@ const checkSignalHealth = (signal, name) => {
       }
 
       // Always update output spectrogram
-      const outputResponse = await fetch(`${API_BASE}/spectrogram`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          signal: outputSignal, 
-          sample_rate: sampleRate
-        })
-      });
-      
-      if (!outputResponse.ok) {
-        throw new Error(`HTTP error! status: ${outputResponse.status}`);
-      }
-      
-      const outputData = await outputResponse.json();
+      const outputData = await getSpectrogram(outputSignal, sampleRate);
       
       if (outputData.success && outputData.spectrogram) {
         console.log('Output spectrogram received:', {
@@ -592,21 +531,8 @@ const checkSignalHealth = (signal, name) => {
     try {
       console.log('Updating frequency response with bands:', frequencyBands);
       
-      const response = await fetch(`${API_BASE}/frequency-response`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          signal: originalSignal,
-          frequency_bands: frequencyBands,
-          sample_rate: sampleRate
-        })
-      });
+      const data = await getFrequencyResponse(originalSignal, frequencyBands, sampleRate);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
       console.log('Frequency response data received:', data);
       
       if (data.success) {
@@ -623,20 +549,12 @@ const checkSignalHealth = (signal, name) => {
 
   const saveSettings = async () => {
     try {
-      const response = await fetch(`${API_BASE}/save-settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          settings: {
-            frequency_bands: frequencyBands,
-            version: '1.0',
-            created: new Date().toISOString()
-          },
-          filename: 'equalizer_settings.json'
-        })
-      });
+      const data = await saveSettings({
+        frequency_bands: frequencyBands,
+        version: '1.0',
+        created: new Date().toISOString()
+      }, 'equalizer_settings.json');
       
-      const data = await response.json();
       if (data.success) {
         alert('Settings saved successfully!');
       }
@@ -714,6 +632,34 @@ const checkSignalHealth = (signal, name) => {
       <div className="main-container">
         {/* Visualization Section - Left side */}
         <div className="visualization-section">
+          {/* NEW: Upload Status Display */}
+          {isUploading && (
+            <div className="upload-status">
+              <div className="upload-loading">
+                <span>Uploading {uploadedFileName || 'file'}...</span>
+                <div className="loading-spinner"></div>
+              </div>
+            </div>
+          )}
+
+          {/* NEW: File Name Display */}
+          {uploadedFileName && !isUploading && (
+            <div className="file-name-display">
+              <span>Loaded: {uploadedFileName}</span>
+            </div>
+          )}
+
+          {/* NEW: Processing Status */}
+          {(isProcessing) && (
+            <div className="processing-status">
+              <div className="processing-indicator">
+                <span>
+                  {'Processing audio...'}
+                </span>
+                <div className="loading-spinner"></div>
+              </div>
+            </div>
+          )}
           {/* Signal Graphs Container */}
           <div className="signal-graphs-container">
             {/* Time Domain Graphs */}

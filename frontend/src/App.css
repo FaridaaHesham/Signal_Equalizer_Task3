@@ -381,3 +381,235 @@ body::-webkit-scrollbar-track {
     flex-direction: column;
   }
 }
+/* Loading States */
+.upload-status, .processing-status {
+  background: rgba(52, 152, 219, 0.1);
+  border: 1px solid #3498DB;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  text-align: center;
+}
+
+.upload-loading, .processing-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #3498DB;
+  font-weight: 500;
+}
+
+.file-name-display {
+  background: rgba(46, 204, 113, 0.1);
+  border: 1px solid #2ECC71;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  text-align: center;
+  color: #2ECC71;
+  font-weight: 500;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #3498DB;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner-small {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #3498DB;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.slider-processing-indicator {
+  text-align: center;
+  margin-top: 5px;
+}
+
+.slider-processing-indicator small {
+  color: #3498DB;
+  font-style: italic;
+}
+
+/* Equalizer Panel Upload States */
+.upload-status-panel {
+  background: rgba(52, 152, 219, 0.1);
+  border: 1px solid #3498DB;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 8px 0;
+}
+
+.upload-loading-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #3498DB;
+  font-size: 0.6em;
+}
+
+.uploaded-file-info {
+  background: rgba(46, 204, 113, 0.1);
+  border: 1px solid #2ECC71;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 8px 0;
+  text-align: center;
+}
+
+.file-name {
+  color: #2ECC71;
+  font-size: 0.5em;
+  font-weight: 500;
+}
+
+/* Disabled slider state */
+.vertical-slider.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.vertical-slider.disabled .slider-vertical {
+  cursor: not-allowed;
+}
+.slider-processing-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 5px;
+  color: #3498DB;
+}
+
+.slider-processing-indicator small {
+  color: #3498DB;
+  font-style: italic;
+}
+
+.loading-spinner-small {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #3498DB;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Loading States - Compact */
+.upload-status, .processing-status {
+  background: rgba(52, 152, 219, 0.08);
+  border: 1px solid #3498DB;
+  border-radius: 3px;
+  padding: 4px 6px;
+  margin: 4px 0;
+  text-align: center;
+  font-size: 0.7em;
+}
+
+.upload-loading, .processing-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #3498DB;
+  font-weight: 500;
+}
+
+.file-name-display {
+  background: rgba(46, 204, 113, 0.08);
+  border: 1px solid #2ECC71;
+  border-radius: 3px;
+  padding: 4px 6px;
+  margin: 4px 0;
+  text-align: center;
+  color: #2ECC71;
+  font-weight: 500;
+  font-size: 0.7em;
+}
+
+.loading-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #3498DB;
+  border-top: 1px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner-small {
+  width: 10px;
+  height: 10px;
+  border: 1px solid #3498DB;
+  border-top: 1px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.slider-processing-indicator {
+  text-align: center;
+  margin-top: 3px;
+}
+
+.slider-processing-indicator small {
+  color: #3498DB;
+  font-style: italic;
+  font-size: 0.65em;
+}
+
+/* Equalizer Panel Upload States */
+.upload-status-panel {
+  background: rgba(52, 152, 219, 0.06);
+  border: 1px solid #3498DB;
+  border-radius: 2px;
+  padding: 3px 5px;
+  margin: 4px 0;
+  font-size: 0.65em;
+}
+
+.upload-loading-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #3498DB;
+}
+
+.uploaded-file-info {
+  background: rgba(46, 204, 113, 0.06);
+  border: 1px solid #2ECC71;
+  border-radius: 2px;
+  padding: 3px 5px;
+  margin: 4px 0;
+  text-align: center;
+  font-size: 0.65em;
+}
+
+.file-name {
+  color: #2ECC71;
+  font-weight: 500;
+}
+
+/* Disabled slider state */
+.vertical-slider.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}

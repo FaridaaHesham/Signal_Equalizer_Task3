@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { select, line, scaleLog, scaleLinear, axisBottom, axisLeft, max, curveBasis } from 'd3';
 import './SignalViewer.css';
-
-const API_BASE = 'http://localhost:5000/api';
+import { getFFTSpectrum } from '../services/api';
 
 const SignalViewer = ({ title, signal, timeAxis, color = '#3498DB', sampleRate = 44100, type = 'frequency' }) => {
   const svgRef = useRef();
@@ -23,20 +22,8 @@ const SignalViewer = ({ title, signal, timeAxis, color = '#3498DB', sampleRate =
     
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/fft-spectrum`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          signal: signal,
-          sample_rate: sampleRate 
-        })
-      });
+      const data = await getFFTSpectrum(signal, sampleRate);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
       if (data.success) {
         setFftData(data);
       }
