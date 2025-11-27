@@ -1,4 +1,3 @@
-fastapi
 uvicorn
-numpy
 pydantic
+numpy==1.24.3
