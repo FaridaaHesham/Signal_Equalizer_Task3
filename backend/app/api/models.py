@@ -1,7 +1,7 @@
 import torchaudio
 import torch
 
-# Use the correct ConvTasNet model available in your version
+
 bundle = torchaudio.pipelines.CONVTASNET_BASE_LIBRI2MIX
 model = bundle.get_model()
 

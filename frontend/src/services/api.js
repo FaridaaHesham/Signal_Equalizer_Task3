@@ -34,18 +34,18 @@ export async function uploadAudioFile(file) {
   return response.json();
 }
 
-export async function processAudio(signal, frequencyBands, sampleRate) {
-  const response = await fetch(`${API_BASE}/api/process`, { // Added /api
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      signal: signal,
-      frequency_bands: frequencyBands,
-      sample_rate: sampleRate
-    })
-  });
-  return response.json();
-}
+// export async function processAudio(signal, frequencyBands, sampleRate) {
+//   const response = await fetch(`${API_BASE}/api/process`, { // Added /api
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json' },
+//     body: JSON.stringify({
+//       signal: signal,
+//       frequency_bands: frequencyBands,
+//       sample_rate: sampleRate
+//     })
+//   });
+//   return response.json();
+// }
 
 export async function getSpectrogram(signal, sampleRate) {
   const response = await fetch(`${API_BASE}/api/spectrogram`, { // Added /api

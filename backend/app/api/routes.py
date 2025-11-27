@@ -295,3 +295,186 @@ async def get_default_bands():
         return {'success': True, 'bands': bands}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ===== SOUND SEPARATION =====
+# ===== SOUND SEPARATION FROM SIGNAL =====
+class SeparateSoundsRequest(BaseModel):
+    signal: List[float]
+    sample_rate: int = 44100
+
+# ===== SOUND SEPARATION FROM SIGNAL =====
+class SeparateSoundsRequest(BaseModel):
+    signal: List[float]
+    sample_rate: int = 44100
+
+@router.post("/separate-sounds-from-signal")
+async def separate_sounds_from_signal(request: SeparateSoundsRequest):
+    try:
+        print(f"Separating sounds from signal - Length: {len(request.signal)}, Sample rate: {request.sample_rate}")
+        
+        # Convert signal to numpy array
+        signal = np.array(request.signal, dtype=np.float32)
+        
+        # Run separation
+        result = run_sound_separation_from_signal(signal, request.sample_rate)
+        
+        if result['success']:
+            return {
+                'success': True,
+                'sound1': result['sound1'],
+                'sound2': result['sound2'],
+                'sample_rate': result['sample_rate'],
+                'duration': result['duration']
+            }
+        else:
+            return {'success': False, 'error': result['error']}
+            
+    except Exception as e:
+        print(f"Error in sound separation from signal: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'success': False, 'error': f'Sound separation failed: {str(e)}'}
+
+def run_sound_separation_from_signal(signal, original_sr):
+    """Run sound separation using the trained model on existing signal data"""
+    try:
+        import torch
+        from torch.serialization import safe_globals
+        from asteroid.models import ConvTasNet
+        import librosa
+        import numpy as np
+        from scipy.signal import butter, filtfilt
+        import os
+        
+        # Get the current directory where routes.py is located
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        CKPT_PATH = os.path.join(current_dir, "model.pth")
+        
+        print(f"Looking for model at: {CKPT_PATH}")
+        
+        # Check if model file exists
+        if not os.path.exists(CKPT_PATH):
+            error_msg = f"Model file not found at {CKPT_PATH}. Please ensure model.pth is in the same directory as routes.py"
+            print(error_msg)
+            return {'success': False, 'error': error_msg}
+        
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        TARGET_SR = 16000
+        
+        print(f"Loading model from {CKPT_PATH}...")
+        
+        # Load model
+        with safe_globals([np._core.multiarray.scalar]):
+            conf = torch.load(CKPT_PATH, map_location="cpu", weights_only=False)
+
+        model_conf = conf["model_args"]
+        state_dict = conf["state_dict"]
+
+        print(f"Creating model with config: {model_conf}")
+        
+        model = ConvTasNet(**model_conf)
+        model.load_state_dict(state_dict)
+        model.to(device)
+        model.eval()
+
+        print("Model loaded successfully")
+
+        # Use the provided signal
+        data = np.array(signal, dtype=np.float32)
+        
+        # Check signal health
+        signal_rms = np.sqrt(np.mean(data**2))
+        print(f"Input signal - RMS: {signal_rms:.6f}, Length: {len(data)}")
+
+        # Resample if needed to target sample rate
+        if original_sr != TARGET_SR:
+            print(f"Resampling from {original_sr}Hz to {TARGET_SR}Hz")
+            data = librosa.resample(data, orig_sr=original_sr, target_sr=TARGET_SR)
+        else:
+            data = data.copy()
+
+        # Ensure the signal is in the right range and clean
+        peak = np.max(np.abs(data)) + 1e-8
+        data = data / peak
+
+        mix = data
+        sr = TARGET_SR
+
+        print(f"Running separation on {len(mix)} samples at {sr}Hz")
+
+        # Run separation
+        mix_t = torch.tensor(mix, dtype=torch.float32, device=device).unsqueeze(0)
+
+        with torch.no_grad():
+            est_sources = model(mix_t)
+
+        est_sources = est_sources.squeeze(0).cpu().numpy()
+        
+        print(f"Separation complete - Output shapes: {est_sources.shape}")
+
+        # Apply cleaning filters
+        def spectral_gate(wav, sr, prop_decrease=0.8, n_fft=1024, hop_length=256, n_std_thresh=1.5):
+            S = librosa.stft(wav, n_fft=n_fft, hop_length=hop_length)
+            magnitude, phase = np.abs(S), np.angle(S)
+
+            mag_db = librosa.amplitude_to_db(magnitude, ref=np.max)
+            noise_db = np.percentile(mag_db, 10, axis=1, keepdims=True)
+            thresh_db = noise_db + n_std_thresh * np.std(mag_db - noise_db, axis=1, keepdims=True)
+
+            mask = mag_db > thresh_db
+            magnitude_denoised = magnitude * (mask + prop_decrease * (~mask))
+
+            S_denoised = magnitude_denoised * np.exp(1j * phase)
+            wav_denoised = librosa.istft(S_denoised, hop_length=hop_length, length=len(wav))
+            return wav_denoised
+
+        def bandpass_for_speech(wav, sr, low_hz=80.0, high_hz=8000.0, order=6):
+            nyq = 0.5 * sr
+            high_hz_clamped = min(high_hz, nyq * 0.95)
+            low_hz_clamped = max(low_hz, 10.0)
+            low = low_hz_clamped / nyq
+            high = high_hz_clamped / nyq
+            if not (0 < low < high < 1):
+                return wav
+            b, a = butter(order, [low, high], btype="band")
+            return filtfilt(b, a, wav)
+
+        def clean_source(wav, sr):
+            w = spectral_gate(wav, sr)
+            w = bandpass_for_speech(w, sr)
+            peak = np.max(np.abs(w)) + 1e-8
+            w = w / peak * 0.9
+            return w
+
+        # Clean separated sources
+        print("Cleaning separated sources...")
+        spk1 = clean_source(est_sources[0], sr)
+        spk2 = clean_source(est_sources[1], sr)
+        
+        # Resample back to original sample rate for consistency
+        print(f"Resampling back to {original_sr}Hz")
+        spk1_original_sr = librosa.resample(spk1, orig_sr=sr, target_sr=original_sr)
+        spk2_original_sr = librosa.resample(spk2, orig_sr=sr, target_sr=original_sr)
+        
+        # Limit duration to prevent large data transfers
+        max_duration = 30
+        max_samples = original_sr * max_duration
+        if len(spk1_original_sr) > max_samples:
+            spk1_original_sr = spk1_original_sr[:max_samples]
+            spk2_original_sr = spk2_original_sr[:max_samples]
+
+        print(f"Separation complete - Sound1: {len(spk1_original_sr)}, Sound2: {len(spk2_original_sr)}")
+
+        return {
+            'success': True,
+            'sound1': spk1_original_sr.tolist(),
+            'sound2': spk2_original_sr.tolist(),
+            'sample_rate': original_sr,
+            'duration': len(spk1_original_sr) / original_sr
+        }
+        
+    except Exception as e:
+        print(f"Sound separation from signal error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'success': False, 'error': str(e)}

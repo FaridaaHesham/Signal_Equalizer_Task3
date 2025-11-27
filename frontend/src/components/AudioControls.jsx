@@ -2,6 +2,11 @@ import React, { useRef, useState, useEffect } from 'react';
 import './AudioControls.css';
 
 const AudioControls = ({ inputSignal, outputSignal, sampleRate }) => {
+  // Add proper validation with default values
+  const safeInputSignal = inputSignal || [];
+  const safeOutputSignal = outputSignal || [];
+  const safeSampleRate = sampleRate || 44100;
+  
   const audioContextRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -11,13 +16,16 @@ const AudioControls = ({ inputSignal, outputSignal, sampleRate }) => {
 
   // Calculate duration when signals change
   useEffect(() => {
-    if (inputSignal.length > 0) {
-      setDuration(inputSignal.length / sampleRate);
+    if (safeInputSignal.length > 0) {
+      setDuration(safeInputSignal.length / safeSampleRate);
     }
-  }, [inputSignal, sampleRate]);
+  }, [safeInputSignal, safeSampleRate]);
 
   const playSignal = async (signal, signalType) => {
-    if (!signal.length) return;
+    if (!signal || !signal.length) {
+      console.error('No signal to play');
+      return;
+    }
 
     // Stop any currently playing audio
     stopAudio();
@@ -35,7 +43,7 @@ const AudioControls = ({ inputSignal, outputSignal, sampleRate }) => {
         await audioContext.resume();
       }
 
-      const buffer = audioContext.createBuffer(1, signal.length, sampleRate);
+      const buffer = audioContext.createBuffer(1, signal.length, safeSampleRate);
       const channelData = buffer.getChannelData(0);
       
       // Copy signal to audio buffer
@@ -73,7 +81,9 @@ const AudioControls = ({ inputSignal, outputSignal, sampleRate }) => {
         setIsPlaying(false);
         setCurrentTime(0);
         setCurrentSignal(null);
-        cancelAnimationFrame(animationRef.current);
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
       };
       
       source.start();
@@ -123,22 +133,22 @@ const AudioControls = ({ inputSignal, outputSignal, sampleRate }) => {
         <div className="progress-bar">
           <div 
             className="progress-fill"
-            style={{ width: `${(currentTime / duration) * 100}%` }}
+            style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
           />
         </div>
       </div>
 
       <div className="audio-buttons">
         <button 
-          onClick={() => playSignal(inputSignal, 'input')} 
-          disabled={!inputSignal.length || isPlaying}
+          onClick={() => playSignal(safeInputSignal, 'input')} 
+          disabled={!safeInputSignal.length || isPlaying}
           className="btn btn-audio btn-input"
         >
           Play Input
         </button>
         <button 
-          onClick={() => playSignal(outputSignal, 'output')} 
-          disabled={!outputSignal.length || isPlaying}
+          onClick={() => playSignal(safeOutputSignal, 'output')} 
+          disabled={!safeOutputSignal.length || isPlaying}
           className="btn btn-audio btn-output"
         >
           Play Output
@@ -158,10 +168,10 @@ const AudioControls = ({ inputSignal, outputSignal, sampleRate }) => {
         <div className="waveform-container">
           {currentSignal && (
             <WaveformVisualizer 
-              signal={currentSignal === 'input' ? inputSignal : outputSignal}
+              signal={currentSignal === 'input' ? safeInputSignal : safeOutputSignal}
               currentTime={currentTime}
               duration={duration}
-              sampleRate={sampleRate}
+              sampleRate={safeSampleRate}
               isPlaying={isPlaying}
             />
           )}
@@ -169,8 +179,10 @@ const AudioControls = ({ inputSignal, outputSignal, sampleRate }) => {
       </div>
 
       <div className="audio-info">
-        <p>Sample Rate: {sampleRate} Hz</p>
+        <p>Sample Rate: {safeSampleRate} Hz</p>
         <p>Duration: {duration.toFixed(2)}s</p>
+        <p>Input Samples: {safeInputSignal.length}</p>
+        <p>Output Samples: {safeOutputSignal.length}</p>
       </div>
     </div>
   );
@@ -182,7 +194,7 @@ const WaveformVisualizer = ({ signal, currentTime, duration, sampleRate, isPlayi
   const [windowSize, setWindowSize] = useState(1024); // Samples to show
 
   useEffect(() => {
-    if (!canvasRef.current || !signal.length) return;
+    if (!canvasRef.current || !signal || !signal.length) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -225,18 +237,20 @@ const WaveformVisualizer = ({ signal, currentTime, duration, sampleRate, isPlayi
     ctx.stroke();
 
     // Draw playhead (current position)
-    const playheadX = (currentTime / duration) * width;
-    ctx.strokeStyle = '#E74C3C';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(playheadX, 0);
-    ctx.lineTo(playheadX, height);
-    ctx.stroke();
+    if (duration > 0) {
+      const playheadX = (currentTime / duration) * width;
+      ctx.strokeStyle = '#E74C3C';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, 0);
+      ctx.lineTo(playheadX, height);
+      ctx.stroke();
 
-    // Draw time indicator
-    ctx.fillStyle = '#ECF0F1';
-    ctx.font = '12px Arial';
-    ctx.fillText(formatTime(currentTime), playheadX + 5, 15);
+      // Draw time indicator
+      ctx.fillStyle = '#ECF0F1';
+      ctx.font = '12px Arial';
+      ctx.fillText(formatTime(currentTime), playheadX + 5, 15);
+    }
 
   }, [signal, currentTime, duration, sampleRate, isPlaying, windowSize]);
 

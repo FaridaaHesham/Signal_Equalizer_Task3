@@ -8,6 +8,7 @@ import AudioControls from './components/AudioControls';
 import FrequencyResponse from './components/FrequencyResponse';
 import VerticalSlider from './components/VerticalSlider';
 import useModeData from './hooks/useModeData';
+import SoundSeparator from './components/SoundSeparator';
 import { 
   generateAnimalBands, 
   generateHumanBands, 
@@ -184,6 +185,7 @@ function App() {
   const [selectedHumans, setSelectedHumans] = useState([]);
   const [selectedInstruments, setSelectedInstruments] = useState([]);
   const [isUploading, setIsUploading] = useState(false); // NEW: Upload loading state
+  const [separatedSignals, setSeparatedSignals] = useState(null);
 
   
   // Use unified mode data hook
@@ -441,30 +443,73 @@ function App() {
   };
 
  // Update processAudio to handle completion
-  const processAudio = async () => {
-    if (!originalSignal.length) return;
+const processAudio = async () => {
+  if (!originalSignal.length) return;
+  
+  setIsProcessing(true);
+  try {
+    console.log('Processing audio with original signal length:', originalSignal.length);
+    const response = await fetch(`${API_BASE}/api/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        signal: originalSignal, // Always use ORIGINAL signal, not processedSignal
+        frequency_bands: frequencyBands,
+        sample_rate: sampleRate
+      })
+    });
     
-    setIsProcessing(true);
-    try {
-      console.log('Processing audio with original signal length:', originalSignal.length);
+    const data = await response.json();
+    if (data.success) {
+      console.log('Processing complete, setting processed signal:', data.processed_signal.length);
+      console.log('Signal stats:', data.signal_stats);
+      setProcessedSignal(data.processed_signal);
       
-      const data = await processAudio(originalSignal, frequencyBands, sampleRate);
-      
-      if (data.success) {
-        console.log('Processing complete, setting processed signal:', data.processed_signal.length);
-        console.log('Signal stats:', data.signal_stats);
-        
-        setProcessedSignal(data.processed_signal);
-        
-        // Update spectrograms with ORIGINAL and PROCESSED signals
-        updateSpectrograms(originalSignal, data.processed_signal);
-      }
-    } catch (error) {
-      console.error('Error processing audio:', error);
-    } finally {
-      setIsProcessing(false);
+      // Update spectrograms with ORIGINAL and PROCESSED signals
+      updateSpectrograms(originalSignal, data.processed_signal);
     }
-  };
+      } catch (error) {
+    console.error('Error processing audio:', error);
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+  const handleSeparatedSignals = async (signalData) => {
+  console.log('Received separated signals data:', signalData);
+  
+  // Validate the data structure
+  if (!signalData || !signalData.signal) {
+    console.error('Invalid signal data received:', signalData);
+    return;
+  }
+
+  const newSignal = signalData.signal;
+  const newSampleRate = signalData.sample_rate || sampleRate;
+  
+  console.log('Setting separated signal:', {
+    length: newSignal.length,
+    sampleRate: newSampleRate
+  });
+  
+  setOriginalSignal(newSignal);
+  setProcessedSignal(newSignal);
+  
+  // Create proper time axis
+  const newTimeAxis = Array.from(
+    {length: newSignal.length}, 
+    (_, i) => i / newSampleRate
+  );
+  setTimeAxis(newTimeAxis);
+  setSampleRate(newSampleRate);
+  setUploadedFileName(`separated_${Date.now()}.wav`);
+  
+  // Force update spectrograms with the new signal
+  await updateSpectrograms(newSignal, newSignal);
+  updateFrequencyResponse();
+  
+  console.log('Separated signal set successfully');
+};
 
   // Modified updateSpectrograms
   const updateSpectrograms = async (inputSignal, outputSignal) => {
@@ -859,7 +904,16 @@ function App() {
               </div>
             </div>
           )}
-
+          
+        {/* Sound Separation */}
+        {(currentMode === 'animals' || currentMode === 'humans' || currentMode === 'instruments') && (
+          <SoundSeparator
+            currentMode={currentMode}
+            originalSignal={originalSignal}
+            sampleRate={sampleRate}
+            onSeparatedSignals={handleSeparatedSignals}
+          />
+        )}
           {/* Audio Playback */}
           <div className="controls-audio-playback">
             <AudioControls
